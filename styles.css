@@ -1,6 +1,7 @@
 :root {
   color-scheme: dark;
   font-family: system-ui, sans-serif;
+  font-size: 18px;
   background: #0e1430;
   color: #f5f1e6;
   --gold: #f2c14e;
@@ -9,10 +10,12 @@
   --glass: #11172deb;
   --cream: #ffe9b0;
 }
+:root.large-text { font-size: 22.5px; }
 * { box-sizing: border-box; }
 body { margin: 0; overflow: hidden; }
 [hidden] { display: none !important; }
-#game, #world, #hud { position: fixed; inset: 0; }
+#game, #world, #hud, #screen-feedback { position: fixed; inset: 0; }
+#screen-feedback { background: transparent; pointer-events: none; }
 #world canvas { display: block; width: 100%; height: 100%; }
 #world { cursor: grab; touch-action: none; }
 #world:active { cursor: grabbing; }
@@ -33,7 +36,7 @@ body { margin: 0; overflow: hidden; }
 }
 .hud-card { padding: 9px 13px; }
 .identity { justify-self: start; min-width: 126px; }
-.identity p { margin: 0 0 6px; color: var(--cream); font-size: .76rem; }
+.identity p { margin: 0 0 6px; color: var(--cream); }
 .flames { display: flex; gap: 7px; min-height: 19px; }
 .flames i {
   width: 13px;
@@ -47,33 +50,36 @@ body { margin: 0; overflow: hidden; }
   box-shadow: 0 0 12px #ffb3477a;
 }
 .clock { text-align: center; min-width: 104px; }
-.hud-card span { font-size: .72rem; color: var(--cream); }
-.hud-card strong { font-size: .97rem; font-variant-numeric: tabular-nums; }
+.hud-card span { color: var(--cream); }
+.hud-card strong { font-size: 1rem; font-variant-numeric: tabular-nums; }
 .clock strong { display: block; font-size: 1.43rem; line-height: 1.11; margin-top: 3px; }
 .clock .urgent { color: var(--danger); animation: urgent .85s ease-in-out infinite alternate; }
 .accessible-palette { --danger: #fff; }
 .accessible-palette .clock .urgent::before,
-.accessible-palette #hint.fuel-warning::before { content: '⚠︎ '; }
+.accessible-palette #hint.fuel-warning::before,
+.accessible-palette #visual-notices:not(:empty)::before { content: '⚠︎ '; }
+.reduced-motion .clock .urgent { animation: none; }
 @keyframes urgent { to { opacity: .45; } }
 @media (prefers-reduced-motion: reduce) { .clock .urgent { animation: none; } }
 .result-stats { display: flex; justify-self: end; padding-inline: 8px; }
 .result-stats div { padding-inline: 12px; text-align: center; }
 .result-stats div + div { border-left: 1px solid var(--line); }
 .result-stats strong { display: block; margin-top: 3px; }
-.result-stats small { display: block; margin-top: 2px; color: var(--cream); font-size: .64rem; white-space: nowrap; }
+.result-stats small { display: block; margin-top: 2px; color: var(--cream); font-size: 1rem; white-space: nowrap; }
 .result-stats div:last-child strong, .inventory strong { color: var(--gold); }
-.hud-bottom { position: absolute; left: 50%; bottom: 67px; transform: translateX(-50%); text-align: center; }
+.hud-bottom { position: absolute; left: 50%; bottom: 75px; transform: translateX(-50%); text-align: center; }
 .hud-bottom p {
   margin: 0 auto 6px;
   width: max-content;
-  max-width: min(86vw, 425px);
+  max-width: min(86vw, 610px);
   color: var(--cream);
-  font-size: .86rem;
+  font-size: 1rem;
   font-weight: 650;
   text-shadow: 0 2px 6px #01030d, 0 0 16px #01030d;
 }
 .hud-bottom p:empty { display: none; }
 #hint.fuel-warning { color: var(--danger); }
+#visual-notices { color: var(--danger); }
 .inventory { padding-inline: 12px; }
 .inventory-label { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
 .mote-slots { display: flex; gap: 4px; }
@@ -89,10 +95,10 @@ body { margin: 0; overflow: hidden; }
   background: linear-gradient(145deg, #fff6c2, #f2c14e);
   box-shadow: 0 0 7px #f2c14e57;
 }
-.abilities { position: absolute; right: 22px; bottom: 22px; display: grid; gap: 5px; }
-.abilities div { display: grid; grid-template-columns: 43px 52px 62px; align-items: center; gap: 4px; }
-.abilities strong { font-size: .74rem; color: var(--gold); text-align: right; }
-.guide-arrow {
+.abilities { position: absolute; right: 22px; bottom: 70px; display: grid; gap: 5px; }
+.abilities div { display: grid; grid-template-columns: minmax(3rem, max-content) max-content minmax(4.8rem, max-content); align-items: center; gap: 8px; }
+.abilities strong { color: var(--gold); text-align: right; }
+.guide-arrow, .shade-arrow {
   position: absolute;
   left: 50%;
   top: 96px;
@@ -107,6 +113,13 @@ body { margin: 0; overflow: hidden; }
   font-size: 1.43rem;
   line-height: 1;
 }
+.shade-arrow {
+  z-index: 1;
+  color: var(--danger);
+  border-color: currentColor;
+  width: 42px;
+  height: 42px;
+}
 .controls {
   position: absolute;
   bottom: 17px;
@@ -116,8 +129,8 @@ body { margin: 0; overflow: hidden; }
   display: flex;
   gap: 5px 10px;
   width: max-content;
-  max-width: calc(100% - 28px);
-  font-size: .69rem;
+  max-width: min(94vw, 950px);
+  font-size: 1rem;
   justify-content: center;
   flex-wrap: wrap;
   pointer-events: none;
@@ -132,6 +145,7 @@ kbd {
   color: var(--gold);
   white-space: nowrap;
   text-align: center;
+  font-size: 1rem;
 }
 .overlay {
   position: absolute;
@@ -145,7 +159,9 @@ kbd {
 .panel {
   display: grid;
   justify-items: center;
-  width: min(498px, 100%);
+  width: min(560px, 100%);
+  max-height: calc(100dvh - 28px);
+  overflow: auto;
   text-align: center;
   padding: 29px 23px;
   background: linear-gradient(156deg, #242736f5, #11192ef7 78%);
@@ -153,6 +169,7 @@ kbd {
   border-radius: 22px;
   box-shadow: 0 28px 92px #06091bad;
 }
+.leaderboard-view .panel { width: min(845px, 100%); }
 .seal {
   display: grid;
   place-items: center;
@@ -171,11 +188,11 @@ kbd {
   background: linear-gradient(90deg, #b9773b, #ffe9b0 52%, #bd7f43);
   box-shadow: 0 0 13px #f2c14e85;
 }
-.chapter { margin: 0 0 7px; color: var(--gold); font-size: .82rem; }
+.chapter { margin: 0 0 7px; color: var(--gold); }
 .chapter:empty, #overlay-copy:empty { display: none; }
 .panel h1 {
   font-family: Cambria, Georgia, 'Times New Roman', serif;
-  font-size: clamp(2.1rem, 6vw, 3.55rem);
+  font-size: 3.1rem;
   font-weight: 600;
   line-height: 1.04;
   margin: 0;
@@ -202,9 +219,34 @@ button:focus-visible, input:focus-visible { outline: 2px solid #fff6c2; outline-
 .settings input { width: 100%; accent-color: var(--gold); margin: 0 0 6px; }
 .settings .settings-toggle { align-items: center; gap: 12px; margin-top: 4px; }
 .settings-toggle input { width: 1.15rem; height: 1.15rem; margin: 0; cursor: pointer; }
+.keybindings, .score-form, .leaderboard { width: 100%; margin-top: 15px; }
+.key-rows { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 13px; }
+.key-rows > div { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.key-rows button { min-width: 3.2em; padding: 3px 7px; }
+.keybindings p, .score-form p { margin: 8px 0 0; color: var(--cream); }
+.score-form label { display: block; margin-bottom: 6px; }
+.score-input { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.score-input input {
+  min-width: 120px;
+  max-width: 235px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #10152a;
+  color: inherit;
+  font: inherit;
+}
+.score-input button:disabled { opacity: .58; cursor: default; }
+.leaderboard { overflow-x: auto; }
+.leaderboard table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+.leaderboard th, .leaderboard td { padding: 6px 10px; border-bottom: 1px solid var(--line); }
+.leaderboard th { color: var(--cream); }
+.leaderboard td:nth-child(2) { text-align: left; }
+.leaderboard-status:empty { display: none; }
 @media (max-width: 940px) {
   .hud-top { inset: 12px 12px auto; }
-  .abilities { right: 12px; bottom: 54px; }
+  .abilities { right: 12px; bottom: 112px; }
+  .hud-bottom { bottom: 110px; }
   .guide-arrow { top: 83px; }
 }
 @media (max-width: 650px) {
@@ -213,6 +255,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid #fff6c2; outline-
   .result-stats div { padding-inline: 5px; }
   .clock { min-width: 65px; }
   .clock strong { font-size: 1.13rem; }
-  .abilities { bottom: 111px; }
-  .hud-bottom { bottom: 66px; }
+  .abilities { bottom: 174px; }
+  .hud-bottom { bottom: 105px; }
+  .panel h1 { font-size: 2.1rem; }
+  .key-rows { grid-template-columns: 1fr; }
 }

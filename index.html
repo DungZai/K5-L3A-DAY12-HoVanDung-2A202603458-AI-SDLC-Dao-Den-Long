@@ -11,6 +11,7 @@
 <body>
   <main id="game" aria-label="Đảo Đèn Lồng">
     <div id="world" aria-label="Cảnh 3D"></div>
+    <div id="screen-feedback" aria-hidden="true"></div>
     <section id="hud" aria-label="Trạng thái của Mây" hidden>
       <div class="hud-top">
         <div class="hud-card identity">
@@ -24,7 +25,9 @@
         </div>
       </div>
       <div id="guide-arrow" class="guide-arrow" hidden aria-label="Hướng đèn chưa sáng gần nhất">↑</div>
+      <div id="shade-arrow" class="shade-arrow" hidden aria-label="Hướng Bóng Mực mới xuất hiện">↑</div>
       <div class="hud-bottom">
+        <p id="visual-notices" aria-live="polite"></p>
         <p id="hint" role="status"></p>
         <p id="notice" role="status"></p>
         <div class="hud-card inventory">
@@ -33,16 +36,16 @@
         </div>
       </div>
       <div class="hud-card abilities">
-        <div><kbd>Shift</kbd><span>Lướt</span><strong id="dash-status">Sẵn sàng</strong></div>
-        <div><kbd>Q</kbd><span>Tỏa Sáng</span><strong id="pulse-status">Sẵn sàng</strong></div>
+        <div><kbd id="key-guide-dash">Shift</kbd><span>Lướt</span><strong id="dash-status">Sẵn sàng</strong></div>
+        <div><kbd id="key-guide-pulse">Q</kbd><span>Tỏa Sáng</span><strong id="pulse-status">Sẵn sàng</strong></div>
       </div>
     </section>
     <footer id="controls" class="controls" aria-label="Điều khiển" hidden>
-      <span><kbd>W A S D</kbd> Di chuyển</span>
-      <span><kbd>Space</kbd> Nhảy</span>
-      <span><kbd>E</kbd> Nạp đèn</span>
+      <span><kbd id="key-guide-move">W A S D</kbd> Di chuyển</span>
+      <span><kbd id="key-guide-jump">Space</kbd> Nhảy</span>
+      <span><kbd id="key-guide-interact">E</kbd> Nạp đèn</span>
       <span><kbd>← →</kbd> Xoay góc nhìn</span>
-      <span><kbd>Esc</kbd> Tạm dừng</span>
+      <span><kbd id="key-guide-pause">Esc</kbd> Tạm dừng</span>
     </footer>
     <section id="overlay" class="overlay" aria-labelledby="overlay-title">
       <div class="panel">
@@ -59,6 +62,32 @@
           <label class="settings-toggle" for="colorblind">Bảng màu dễ phân biệt
             <input id="colorblind" type="checkbox">
           </label>
+          <label class="settings-toggle" for="reduced-motion">Giảm chuyển động
+            <input id="reduced-motion" type="checkbox">
+          </label>
+          <label class="settings-toggle" for="large-text">Chữ lớn
+            <input id="large-text" type="checkbox">
+          </label>
+        </div>
+        <div id="keybindings" class="keybindings" hidden>
+          <div id="key-rows" class="key-rows"></div>
+          <p id="key-feedback" role="status">Chọn hành động rồi nhấn phím mới.</p>
+        </div>
+        <form id="score-form" class="score-form" hidden>
+          <label for="score-name">Tên trên bảng xếp hạng</label>
+          <div class="score-input">
+            <input id="score-name" name="name" required minlength="3" maxlength="12" pattern="[A-Za-z0-9_]{3,12}"
+              placeholder="VD May_01" autocomplete="off" aria-describedby="score-feedback">
+            <button type="submit" id="score-submit">Lưu điểm</button>
+          </div>
+          <p id="score-feedback" role="status">Dùng 3–12 chữ cái, chữ số hoặc dấu gạch dưới.</p>
+        </form>
+        <div id="leaderboard" class="leaderboard" hidden>
+          <p id="leaderboard-status" role="status"></p>
+          <table aria-label="Bảng xếp hạng cục bộ">
+            <thead><tr><th>Hạng</th><th>Tên</th><th>Điểm</th><th>Đêm</th><th>Ngày ghi</th></tr></thead>
+            <tbody id="leaderboard-rows"></tbody>
+          </table>
         </div>
       </div>
     </section>

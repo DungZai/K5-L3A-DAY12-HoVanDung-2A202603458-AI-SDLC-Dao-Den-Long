@@ -1,14 +1,22 @@
 {
   "name": "dao-den-long",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node scripts/serve.mjs",
-    "test": "node --test tests/phase1.test.mjs tests/phase2.test.mjs tests/phase3.test.mjs",
-    "proof": "node scripts/verify-phase3.mjs"
+    "test": "node --test tests/phase1.test.mjs tests/phase2.test.mjs tests/phase3.test.mjs tests/phase4.test.mjs",
+    "proof": "node scripts/verify-headless.mjs",
+    "bench": "node scripts/bench.mjs",
+    "soak": "node --expose-gc scripts/soak.mjs",
+    "package": "node scripts/package-release.mjs"
   },
   "dependencies": {
     "three": "0.160.1"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
   }
 }

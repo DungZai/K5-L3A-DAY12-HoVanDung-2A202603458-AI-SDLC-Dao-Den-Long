@@ -1,0 +1,15 @@
+{
+  "contract_version": "1.3",
+  "archive_bytes": 309842,
+  "archive_sha256": "7c0865785b958e5b00cd997f38bdbccdc7905e8cf26a18d3035cb2283716de62",
+  "node": "v26.13.1",
+  "os": "win32",
+  "verified": [
+    "package_without_node_modules",
+    "bundled_three_license",
+    "served_webgl_and_entered_night",
+    "leaderboard_after_server_restart",
+    "export_matches_disk"
+  ],
+  "browser_errors": []
+}

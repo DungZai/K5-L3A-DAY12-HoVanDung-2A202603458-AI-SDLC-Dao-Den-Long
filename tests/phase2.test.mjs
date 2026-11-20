@@ -15,7 +15,7 @@ const near = (actual, expected, epsilon = 0.002) =>
   assert.ok(Math.abs(actual - expected) <= epsilon, `${actual} != ${expected}`);
 
 test('contract hiện tại và số chuẩn, 3 bản đồ và hình học chuẩn', () => {
-  assert.equal(contract.contract_version, '1.2');
+  assert.equal(contract.contract_version, '1.3');
   assert.deepEqual([tuning.dash_speed, tuning.dash_duration_s, tuning.dash_cooldown_s], [14, 0.2, 1.5]);
   assert.deepEqual([tuning.night1_duration_s, tuning.night2_duration_s, tuning.night3_duration_s], [240, 270, 300]);
   for (const number of [1, 2, 3]) {

@@ -6,7 +6,7 @@ import { cli, contract } from '../tests/headless.mjs';
 import { phase2Cases } from '../tests/phase2-scenarios.mjs';
 import { phase3Cases } from '../tests/phase3-scenarios.mjs';
 
-assert.equal(contract.contract_version, '1.2');
+assert.equal(contract.contract_version, '1.3');
 
 const sampleTicks = {
   relight: [0, 60, 5940, 6000],
@@ -51,6 +51,6 @@ const summary = {
   determinism: { request: baseline, sha256: createHash('sha256').update(first.raw).digest('hex'), repeat_byte_identical: true },
   cases
 };
-writeFileSync(new URL('phase-3-headless.json', dir), JSON.stringify(summary, null, 2) + '\n');
+writeFileSync(new URL('phase-4-headless.json', dir), JSON.stringify(summary, null, 2) + '\n');
 console.log(JSON.stringify({ ...summary.measurements, sha256: summary.determinism.sha256,
   repeat_byte_identical: true, cases: Object.keys(cases) }, null, 2));

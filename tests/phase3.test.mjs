@@ -9,8 +9,8 @@ const run = (key) => cli(phase3Cases[key]);
 const lantern = (result, tick, index = 0) => result.snapshots.find((snapshot) => snapshot.tick === tick).lanterns[index];
 const events = (result, name) => result.events.filter((event) => event.name === name);
 
-test('v1.2 khai đủ thông số dầu, giá thắp lại, ngưỡng thắng và sức chứa', () => {
-  assert.equal(contract.contract_version, '1.2');
+test('v1.3 giữ thông số dầu, giá thắp lại, ngưỡng thắng và sức chứa', () => {
+  assert.equal(contract.contract_version, '1.3');
   for (const [key, expected] of Object.entries({ fuel_max: 100, fuel_decay_per_s: 1, fuel_per_mote: 10,
     relight_cost: 5, win_ratio: 0.6, drain_per_s: 5, low_fuel_threshold: 30, capacity_max: 20 })) {
     assert.equal(tuning[key], expected, key);

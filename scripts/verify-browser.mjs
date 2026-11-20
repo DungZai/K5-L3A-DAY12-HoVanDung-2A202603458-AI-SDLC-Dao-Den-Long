@@ -1,32 +1,14 @@
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
-import { arch, cpus, platform, release } from 'node:os';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { arch, cpus, platform, release, tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { chromiumRuntime, startLocalServer } from './browser-tools.mjs';
 
-const require = createRequire(import.meta.url);
-const { chromium } = require(process.env.LAB_PLAYWRIGHT || process.env.PHASE2_PLAYWRIGHT || 'playwright');
-const cwd = fileURLToPath(new URL('../', import.meta.url));
 const proof = fileURLToPath(new URL('../docs/proof/', import.meta.url));
-const server = spawn(process.execPath, ['scripts/serve.mjs'], {
-  cwd, env: { ...process.env, PORT: '0' }, windowsHide: true, stdio: ['ignore', 'pipe', 'inherit']
-});
+const dataDir = mkdtempSync(join(tmpdir(), 'ddl-browser-proof-'));
+let server;
 let browser;
-
-function serverUrl() {
-  return new Promise((resolve, reject) => {
-    let output = '';
-    const timeout = setTimeout(() => reject(new Error('Máy chủ không trả về địa chỉ.')), 6000);
-    server.once('error', (error) => { clearTimeout(timeout); reject(error); });
-    server.once('exit', (code) => { clearTimeout(timeout); reject(new Error(`Máy chủ thoát với mã ${code}.`)); });
-    server.stdout.on('data', (chunk) => {
-      output += chunk.toString();
-      const url = output.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];
-      if (url) { clearTimeout(timeout); resolve(url); }
-    });
-  });
-}
 
 async function label(page, id) {
   return page.locator('#' + id).textContent();
@@ -59,11 +41,12 @@ async function fixture(page, value) {
 }
 
 try {
-  const base = await serverUrl();
+  server = await startLocalServer({ dataDir });
+  const base = server.url;
   const args = (process.env.LAB_SWIFTSHADER ?? process.env.PHASE2_SWIFTSHADER) === '1'
     ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [];
-  browser = await chromium.launch({ executablePath: process.env.LAB_BROWSER || process.env.PHASE2_BROWSER || undefined,
-    headless: true, args });
+  const { chromium, executablePath } = chromiumRuntime();
+  browser = await chromium.launch({ executablePath, headless: true, args });
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
@@ -80,6 +63,8 @@ try {
         })) };
     } else if (globalThis.__labFixture === 'lose') {
       scenario = { player: { flames: 0 } };
+    } else if (globalThis.__labFixture === 'hit') {
+      scenario = { random_shades: false, shades: [{ pos: [0, 0.8, 0] }] };
     } else if (globalThis.__labFixture === 'low-fuel') {
       scenario = { time_left_s: 10.2, random_motes: false, random_shades: false,
         player: { carried: 3, successful_lights: 2 },
@@ -87,6 +72,9 @@ try {
           { id: 'L2', pos: [-2.25, 0, 7] }],
         shades: [{ pos: [2.5, 0.8, 5.3], state: 'stunned', state_ticks_left: 600 }] };
     }
+  `).replace('this.simTick++;', `
+    if (globalThis.__labFixture === 'wind' && this.number === 3 && this.simTick === 0) this.simTick = 1679;
+    this.simTick++;
   `);
   await page.route('**/src/game.mjs', (route) => route.fulfill({
     status: 200, contentType: 'text/javascript; charset=utf-8', body: injected
@@ -97,6 +85,7 @@ try {
   await page.route('**/src/scene.mjs', (route) => route.fulfill({
     status: 200, contentType: 'text/javascript; charset=utf-8',
     body: scene.replace(drawAnchor, `
+      if (globalThis.__labFixture === 'hit') globalThis.__labShake = shake;
       if (globalThis.__labFixture === 'low-fuel') {
         globalThis.__fuelVisuals = {
           rim: rim.color.getHex(), halo: shadeHalo.color.getHex(),
@@ -122,6 +111,8 @@ try {
   await page.getByRole('heading', { name: 'Đảo Bến' }).waitFor();
   await click(page, 'Vào Đêm');
   await page.locator('#hud').waitFor();
+  const baseFont = await page.locator('#light-goal').evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
+  assert.equal(baseFont, 18);
   const fps = {};
   const scores = [];
   mkdirSync(proof, { recursive: true });
@@ -138,8 +129,17 @@ try {
   await page.locator('#sensitivity').focus();
   await page.keyboard.press('End');
   await page.getByRole('checkbox', { name: 'Bảng màu dễ phân biệt' }).check();
-  assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('dao-den-long-settings'))),
-    { volume: 1, sensitivity: 200, colorblind: true });
+  await page.getByRole('checkbox', { name: 'Giảm chuyển động' }).check();
+  await page.getByRole('checkbox', { name: 'Chữ lớn' }).check();
+  await click(page, 'Đổi phím');
+  assert.equal(await page.locator('#key-rows button').count(), 9);
+  await page.locator('[data-action="interact"]').click();
+  await page.keyboard.press('w');
+  assert.match(await label(page, 'key-feedback'), /đang dùng/);
+  await page.keyboard.press('f');
+  assert.match(await label(page, 'key-feedback'), /thành F/);
+  await page.screenshot({ path: proof + 'phase-4-controls.png' });
+  await click(page, 'Quay lại');
   await click(page, 'Quay lại');
   await click(page, 'Tiếp tục');
   await page.locator('#overlay').waitFor({ state: 'hidden' });
@@ -151,6 +151,10 @@ try {
   await click(page, 'Chơi lại Đêm');
   await page.locator('#timer.urgent').waitFor();
   await page.waitForFunction(() => window.__labAudioEvents?.includes('countdown'));
+  assert.match(await label(page, 'visual-notices'), /Còn \d+ giây/);
+  assert.match(await label(page, 'visual-notices'), /Ít dầu ở L1/);
+  const largeFont = await page.locator('#light-goal').evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
+  assert.equal(largeFont / baseFont, 1.25);
   await page.waitForFunction(() => window.__fuelVisuals?.lamps[0].bar_opacity < 0.42);
   const dim = await page.evaluate(() => window.__fuelVisuals);
   await page.waitForFunction(() => window.__fuelVisuals?.lamps[0].bar_opacity > 0.96);
@@ -172,15 +176,27 @@ try {
   assert.equal(await label(page, 'carried'), '3 / 14');
   assert.equal(await page.locator('#mote-slots i:not([hidden])').count(), 14);
   assert.match(await label(page, 'hint'), /Châm dầu/);
-  await page.screenshot({ path: proof + 'phase-3-fuel-and-palette.png' });
   await page.keyboard.press('e');
+  await page.waitForTimeout(100);
+  assert.equal(await label(page, 'carried'), '3 / 14');
+  await page.keyboard.press('f');
   await page.waitForFunction(() => window.__fuelVisuals?.lamps[0].safety);
   assert.equal(await label(page, 'carried'), '0 / 14');
+  await page.keyboard.press('Escape');
+  await page.getByRole('heading', { name: 'Tạm dừng' }).waitFor();
+  await fixture(page, 'hit');
+  await click(page, 'Chơi lại Đêm');
+  await page.waitForFunction(() => document.querySelector('#flames').getAttribute('aria-label').startsWith('2 /'));
+  assert.equal(await page.evaluate(() => window.__labShake), 0);
+  assert.equal(await page.locator('#screen-feedback').evaluate((element) => element.getAnimations().length), 0);
   await page.keyboard.press('Escape');
   await page.getByRole('heading', { name: 'Tạm dừng' }).waitFor();
   await fixture(page, 'lose');
   await click(page, 'Chơi lại Đêm');
   await page.getByRole('heading', { name: 'Đêm chưa sáng' }).waitFor();
+  await page.getByLabel('Tên trên bảng xếp hạng').fill('May_Thu');
+  await click(page, 'Lưu điểm');
+  await page.waitForFunction(() => document.querySelector('#score-feedback').textContent.includes('Đã ghi'));
   await fixture(page, null);
   await click(page, 'Chơi lại Đêm');
 
@@ -189,20 +205,34 @@ try {
     await page.waitForFunction((label) => document.querySelector('#night-label').textContent.includes(label), title);
     assert.equal(await label(page, 'lit'), `0 / ${night + 4}`);
     fps[night] = await sampleFps(page);
+    if (night === 1) {
+      await page.locator('#shade-arrow').waitFor();
+      assert.match(await label(page, 'visual-notices'), /Bóng Mực xuất hiện/);
+      await page.screenshot({ path: proof + 'phase-4-gameplay.png' });
+    }
 
     await page.keyboard.press('Escape');
     await page.getByRole('heading', { name: 'Tạm dừng' }).waitFor();
+    if (night === 3) {
+      await fixture(page, 'wind');
+      await click(page, 'Chơi lại Đêm');
+      await page.waitForFunction(() => document.querySelector('#visual-notices').textContent.includes('Sắp có gió mạnh'));
+      await page.keyboard.press('Escape');
+      await page.getByRole('heading', { name: 'Tạm dừng' }).waitFor();
+    }
     await fixture(page, 'win');
     await click(page, 'Chơi lại Đêm');
     await page.waitForFunction(() => document.querySelector('#carried').textContent === '10 / 10');
-    await page.keyboard.press('e');
+    await page.keyboard.press('f');
     await page.waitForFunction((count) => document.querySelector('#lit').textContent === `${count} / ${count}`, night + 4);
     assert.equal(await page.locator('#overlay').isHidden(), true);
     await page.getByRole('heading', { name: night === 3 ? 'Bình Minh' : 'Qua Đêm' }).waitFor();
     scores.push(Number(await label(page, 'score')));
     if (night === 3) {
       assert.ok((await label(page, 'overlay-copy')).includes(`Tổng điểm ${scores.reduce((a, b) => a + b, 0)}.`));
-      await page.screenshot({ path: proof + 'phase-3-dawn.png' });
+      await page.getByLabel('Tên trên bảng xếp hạng').fill('May_BinhMinh');
+      await click(page, 'Lưu điểm');
+      await page.waitForFunction(() => document.querySelector('#score-feedback').textContent.includes('Đã ghi'));
     } else {
       await click(page, 'Đêm kế tiếp');
       await page.getByRole('heading', { name: night === 1 ? 'Đảo Cau' : 'Đảo Chuông' }).waitFor();
@@ -213,10 +243,24 @@ try {
 
   await click(page, 'Về menu');
   await page.reload({ waitUntil: 'networkidle' });
+  await click(page, 'Bảng xếp hạng');
+  await page.getByText('May_BinhMinh', { exact: true }).waitFor();
+  await page.getByText('May_Thu', { exact: true }).waitFor();
+  await page.screenshot({ path: proof + 'phase-4-leaderboard.png' });
+  await click(page, 'Về menu');
   await click(page, 'Cài đặt');
   assert.equal(await page.locator('#volume').inputValue(), '1');
   assert.equal(await page.locator('#sensitivity').inputValue(), '200');
   assert.equal(await page.locator('#colorblind').isChecked(), true);
+  assert.equal(await page.locator('#reduced-motion').isChecked(), true);
+  assert.equal(await page.locator('#large-text').isChecked(), true);
+  await click(page, 'Đổi phím');
+  assert.equal(await page.locator('[data-action="interact"]').textContent(), 'F');
+  await click(page, 'Khôi phục mặc định');
+  assert.equal(await page.locator('[data-action="interact"]').textContent(), 'E');
+  const entries = JSON.parse(readFileSync(join(dataDir, 'leaderboard.json'), 'utf8')).entries;
+  assert.deepEqual(entries.map(({ name, nights_won, score }) => [name, nights_won, score]),
+    [['May_BinhMinh', 3, scores.reduce((sum, score) => sum + score, 0)], ['May_Thu', 0, 0]]);
   assert.deepEqual(errors, []);
   const gpu = await page.evaluate(() => {
     const canvas = document.querySelector('#world canvas');
@@ -231,15 +275,19 @@ try {
       chromium: browser.version(), gpu, viewport: '1280x720', render_buffer: resolution, device_pixel_ratio: 1 },
     fps, verified: ['menu', 'introductions', 'pause_resume', 'dash_hud', 'loss_and_retry', 'no_early_win',
       'three_night_progression', 'total_at_dawn', 'settings_persisted', 'urgent_timer_and_countdown_audio',
-      'fuel_meter_blink', 'torn_collapsed_lantern', 'accessible_colors', 'refuel_restores_safety', 'capacity_hud'],
+      'fuel_meter_blink', 'torn_collapsed_lantern', 'accessible_colors', 'refuel_restores_safety', 'capacity_hud',
+      'rebind_duplicate_and_persistence', 'reduced_motion', 'large_text', 'event_indicators', 'disk_leaderboard'],
+    accessibility: { base_font_px: baseFont, large_font_px: largeFont },
+    leaderboard: entries,
     palette: { rim_hex: '#00B3FF', warning },
     fuel_fixture: { dim, bright }, scores_with_win_fixtures: scores,
     browser_errors: []
   };
-  writeFileSync(proof + 'phase-3-browser.json', JSON.stringify(result, null, 2) + '\n');
+  writeFileSync(proof + 'phase-4-browser.json', JSON.stringify(result, null, 2) + '\n');
   console.log(JSON.stringify(result, null, 2));
   assert.ok(Object.values(fps).every(({ average_fps }) => average_fps >= 30), '30 FPS trung bình ở mọi Đêm');
 } finally {
   if (browser) await browser.close();
-  server.kill();
+  server?.close();
+  rmSync(dataDir, { recursive: true, force: true });
 }

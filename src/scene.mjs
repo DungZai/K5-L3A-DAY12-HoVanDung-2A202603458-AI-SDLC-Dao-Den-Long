@@ -22,7 +22,6 @@ const lampOn = light(COLORS.lamp);
 const lampOff = solid(COLORS.unlit);
 const moteLight = light(COLORS.mote);
 const ink = solid(COLORS.ink);
-const stunned = solid(COLORS.stunned);
 const rim = light(COLORS.rim);
 const ribbon = solid(COLORS.drifter);
 const charmGold = light(COLORS.gold);
@@ -33,6 +32,7 @@ const ember = new THREE.IcosahedronGeometry(0.18, 0);
 const shadeBody = new THREE.IcosahedronGeometry(0.58, 1);
 const lampScale = 1.13;
 const meterWidth = 1.42;
+const shadeColors = { ink: new THREE.Color(COLORS.ink), stunned: new THREE.Color(COLORS.stunned) };
 
 function mesh(parent, geometry, material, x = 0, y = 0, z = 0) {
   const object = new THREE.Mesh(geometry, material);
@@ -193,7 +193,30 @@ function stamp(parent, geometry, material, poses) {
   parent.add(instances);
 }
 
-function buildTerrain(map) {
+function movingMeshes(scene, geometry, material, capacity) {
+  const instances = new THREE.InstancedMesh(geometry, material, capacity);
+  instances.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  instances.frustumCulled = false;
+  instances.count = 0;
+  scene.add(instances);
+  return instances;
+}
+
+function movingHalos(scene, texture, color, size, opacity, capacity) {
+  const positions = new Float32Array(capacity * 3);
+  const geometry = new THREE.BufferGeometry();
+  const attribute = new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage);
+  geometry.setAttribute('position', attribute);
+  geometry.setDrawRange(0, 0);
+  const material = new THREE.PointsMaterial({ map: texture, color, size, opacity, transparent: true,
+    depthWrite: false, blending: THREE.AdditiveBlending });
+  const points = new THREE.Points(geometry, material);
+  points.frustumCulled = false;
+  scene.add(points);
+  return { geometry, attribute, material };
+}
+
+function buildTerrain(map, benchmark) {
   const group = new THREE.Group();
   const random = seededRandom(481);
   const trunks = [];
@@ -203,6 +226,7 @@ function buildTerrain(map) {
     mesh(group, new THREE.CylinderGeometry(radius, radius - 0.6, 0.66, 72), [sand, grass, sand], x, -0.33, z);
     mesh(group, new THREE.CylinderGeometry(radius - 0.6, radius * 0.48, 8, 28), solid(0x32475a), x, -4.66, z);
     mesh(group, new THREE.CylinderGeometry(radius * 0.48, 2, 7, 28), solid(0x292d45), x, -12.16, z);
+    if (benchmark) continue;
     for (let index = 0; index < 34; index++) {
       const angle = random() * Math.PI * 2;
       const distance = radius - 1.3 - random() * 6;
@@ -217,20 +241,22 @@ function buildTerrain(map) {
       }
     }
   }
-  stamp(group, new THREE.CylinderGeometry(0.12, 0.2, 1.4, 6), wood, trunks);
-  stamp(group, new THREE.ConeGeometry(0.86, 1.6, 7), solid(0x375c54), foliage);
-  stamp(group, new THREE.DodecahedronGeometry(0.93, 0), solid(0x657073), rocks);
-  const trail = new THREE.CylinderGeometry(0.75, 0.7, 0.022, 7);
-  const paths = [];
-  for (const [x, y, z] of map.lanterns) {
-    if (y !== 0) continue;
-    const origin = map.islands.reduce((best, land) => Math.abs(land.x - x) < Math.abs(best.x - x) ? land : best);
-    for (let part = 2; part < 8; part++) {
-      paths.push([origin.x + (x - origin.x) * part / 9, 0.014,
-        origin.z + (z - origin.z) * part / 9, 0.6 + random() * 0.3, random() * 3]);
+  if (!benchmark) {
+    stamp(group, new THREE.CylinderGeometry(0.12, 0.2, 1.4, 6), wood, trunks);
+    stamp(group, new THREE.ConeGeometry(0.86, 1.6, 7), solid(0x375c54), foliage);
+    stamp(group, new THREE.DodecahedronGeometry(0.93, 0), solid(0x657073), rocks);
+    const trail = new THREE.CylinderGeometry(0.75, 0.7, 0.022, 7);
+    const paths = [];
+    for (const [x, y, z] of map.lanterns) {
+      if (y !== 0) continue;
+      const origin = map.islands.reduce((best, land) => Math.abs(land.x - x) < Math.abs(best.x - x) ? land : best);
+      for (let part = 2; part < 8; part++) {
+        paths.push([origin.x + (x - origin.x) * part / 9, 0.014,
+          origin.z + (z - origin.z) * part / 9, 0.6 + random() * 0.3, random() * 3]);
+      }
     }
+    stamp(group, trail, solid(0xa79a75), paths);
   }
-  stamp(group, trail, solid(0xa79a75), paths);
   if (map.bridge) {
     const { minX, maxX, halfWidth } = map.bridge;
     const planks = [];
@@ -316,7 +342,7 @@ function decorateSky(scene, texture) {
   return clouds;
 }
 
-export function createScene(container, tuning) {
+export function createScene(container, tuning, { benchmark = false } = {}) {
   const renderer = new THREE.WebGLRenderer({ powerPreference: 'high-performance' });
   renderer.setPixelRatio(1);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -336,12 +362,16 @@ export function createScene(container, tuning) {
   const shadow = groundGlow(scene, texture, 0x151727, 2.45, 0.72, false);
   const pulse = groundRing(scene, COLORS.core, 1, 1);
   const layouts = new Map();
-  const motes = new Map();
-  const shades = new Map();
   const drifters = new Map();
   const charms = new Map();
-  const moteHalo = beam(texture, COLORS.moteHalo, 0.91);
-  const shadeHalo = beam(texture, COLORS.rim, 0.47);
+  const moteBodies = movingMeshes(scene, ember, moteLight, 128);
+  const moteGlow = movingHalos(scene, texture, COLORS.moteHalo, 1.4, 0.91, 128);
+  const shadeBodies = movingMeshes(scene, shadeBody, solid(0xffffff), 200);
+  const shadeWisps = movingMeshes(scene, shadeBody, ink, 400);
+  const shadeEyes = movingMeshes(scene, ember, rim, 400);
+  const shadeGlow = movingHalos(scene, texture, COLORS.rim, 2.7, 0.47, 200);
+  const shadeHalo = shadeGlow.material;
+  const pose = new THREE.Object3D();
   const charmHalo = beam(texture, COLORS.gold, 0.57);
   const leavesGeometry = new THREE.BufferGeometry();
   const leafPositions = new Float32Array(33 * 3);
@@ -353,6 +383,8 @@ export function createScene(container, tuning) {
   let total = 0;
   let pulseAge = Infinity;
   let pulsePos;
+  let shake = 0;
+  let reduceMotion = false;
 
   function resize() {
     camera.aspect = container.clientWidth / Math.max(1, container.clientHeight);
@@ -384,7 +416,7 @@ export function createScene(container, tuning) {
     if (layout?.map === night.map) return;
     if (layout) scene.remove(layout.terrain);
     if (!layouts.has(night.number)) {
-      const terrain = buildTerrain(night.map);
+      const terrain = buildTerrain(night.map, benchmark);
       layouts.set(night.number, { map: night.map, terrain,
         lamps: night.lanterns.map(() => buildLamp(terrain, texture, tuning)) });
     }
@@ -392,10 +424,62 @@ export function createScene(container, tuning) {
     scene.add(layout.terrain);
   }
 
+  function writePose(batch, index, x, y, z, yaw, sx, sy = sx, sz = sx) {
+    pose.position.set(x, y, z);
+    pose.rotation.y = yaw;
+    pose.scale.set(sx, sy, sz);
+    pose.updateMatrix();
+    batch.setMatrixAt(index, pose.matrix);
+  }
+
+  function drawMotes(motes) {
+    for (const [index, { pos }] of motes.entries()) {
+      const y = pos[1] + 0.65 + Math.sin(total * 2.7 + index) * 0.19;
+      writePose(moteBodies, index, pos[0], y, pos[2], total * 2 + index, 1);
+      moteGlow.attribute.setXYZ(index, pos[0], y, pos[2]);
+    }
+    moteBodies.count = motes.length;
+    moteBodies.instanceMatrix.needsUpdate = true;
+    moteGlow.geometry.setDrawRange(0, motes.length);
+    moteGlow.attribute.needsUpdate = true;
+  }
+
+  function drawShades(shades, playerX, playerZ) {
+    for (const [index, { pos, state }] of shades.entries()) {
+      const [x, baseY, z] = pos;
+      const y = baseY + Math.sin(total * 3 + index) * 0.13;
+      const angle = Math.atan2(playerX - x, playerZ - z);
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      const size = state === 'spawning' ? 0.4 : 1;
+      writePose(shadeBodies, index, x, y, z, angle, size);
+      shadeBodies.setColorAt(index, state === 'stunned' ? shadeColors.stunned : shadeColors.ink);
+      shadeGlow.attribute.setXYZ(index, x, y, z);
+      for (const side of [-1, 1]) {
+        const attached = index * 2 + Number(side === 1);
+        writePose(shadeEyes, attached, x + (side * 0.21 * cos + 0.5 * sin) * size,
+          y + 0.14 * size, z + (-side * 0.21 * sin + 0.5 * cos) * size, angle, 0.34 * size);
+        writePose(shadeWisps, attached, x + side * 0.48 * cos * size, y - 0.27 * size,
+          z - side * 0.48 * sin * size, angle, 0.51 * size, 0.84 * size, 0.53 * size);
+      }
+    }
+    shadeBodies.count = shades.length;
+    shadeWisps.count = shadeEyes.count = 2 * shades.length;
+    for (const batch of [shadeBodies, shadeWisps, shadeEyes]) batch.instanceMatrix.needsUpdate = true;
+    if (shadeBodies.instanceColor) shadeBodies.instanceColor.needsUpdate = true;
+    shadeGlow.geometry.setDrawRange(0, shades.length);
+    shadeGlow.attribute.needsUpdate = true;
+  }
+
   const projected = new THREE.Vector3();
   return {
     glow(position) { pulseAge = 0; pulsePos = [...position]; },
-    reset() { pulseAge = Infinity; },
+    reset() { pulseAge = Infinity; shake = 0; },
+    setReducedMotion(enabled) {
+      reduceMotion = enabled;
+      if (enabled) shake = 0;
+    },
+    bump() { if (!reduceMotion) shake = 1; },
     setAccessiblePalette(enabled) {
       const color = enabled ? COLORS.rimAccessible : COLORS.rim;
       rim.color.setHex(color);
@@ -405,10 +489,11 @@ export function createScene(container, tuning) {
       projected.set(position[0], position[1] + 1.8, position[2]).project(camera);
       return Math.abs(projected.x) < 0.94 && Math.abs(projected.y) < 0.9 && projected.z < 1 && projected.z > -1;
     },
-    render(night, yaw, seconds) {
+    render(night, yaw, seconds, orbitPosition = null) {
       setMap(night);
       total += seconds;
       pulseAge += seconds;
+      shake = Math.max(0, shake - seconds * 4);
       const { player } = night;
       const [x, y, z] = player.pos;
       may.group.position.set(x, y, z);
@@ -457,30 +542,8 @@ export function createScene(container, tuning) {
       grass.color.copy(grassColor).multiplyScalar(0.6 + ambient.intensity);
       clouds.rotation.y = total * 0.008;
 
-      sync(night.motes, motes, () => {
-        const group = new THREE.Group();
-        mesh(group, ember, moteLight);
-        sprite(group, moteHalo, 1.17);
-        return { group };
-      }, ({ group }, { pos }, index) => {
-        group.position.set(pos[0], pos[1] + 0.65 + Math.sin(total * 2.7 + index) * 0.19, pos[2]);
-        group.rotation.y = total * 2 + index;
-      });
-      sync(night.shades, shades, () => {
-        const group = new THREE.Group();
-        const body = mesh(group, shadeBody, ink);
-        sprite(group, shadeHalo, 2.38);
-        for (const side of [-1, 1]) {
-          mesh(group, ember, rim, side * 0.21, 0.14, 0.5).scale.setScalar(0.34);
-          mesh(group, shadeBody, ink, side * 0.48, -0.27, 0).scale.set(0.51, 0.84, 0.53);
-        }
-        return { group, body };
-      }, ({ group, body }, { pos, state }, index) => {
-        group.position.set(pos[0], pos[1] + Math.sin(total * 3 + index) * 0.13, pos[2]);
-        group.rotation.y = Math.atan2(x - pos[0], z - pos[2]);
-        group.scale.setScalar(state === 'spawning' ? 0.4 : 1);
-        body.material = state === 'stunned' ? stunned : ink;
-      });
+      drawMotes(night.motes);
+      drawShades(night.shades, x, z);
       sync(night.drifters, drifters, () => {
         const group = new THREE.Group();
         const tail = [0, 1, 2].map((index) => mesh(group, new THREE.BoxGeometry(0.46 - index * 0.09, 0.065, 0.67),
@@ -516,8 +579,14 @@ export function createScene(container, tuning) {
 
       const underSummit = night.number === 3 && y < 3 && Math.hypot(x, z) < 11;
       const eye = underSummit ? 3.55 : 6.25;
-      camera.position.set(x - Math.sin(yaw) * 10.5, Math.max(1.1, y + eye), z - Math.cos(yaw) * 10.5);
-      camera.lookAt(x + Math.sin(yaw) * 5.2, Math.max(0, y) + (underSummit ? 0.72 : 1.16), z + Math.cos(yaw) * 5.2);
+      if (orbitPosition) {
+        camera.position.set(...orbitPosition);
+        camera.lookAt(0, 0, 0);
+      } else {
+        camera.position.set(x - Math.sin(yaw) * 10.5 + Math.sin(total * 65) * shake * 0.21,
+          Math.max(1.1, y + eye) + Math.cos(total * 74) * shake * 0.15, z - Math.cos(yaw) * 10.5);
+        camera.lookAt(x + Math.sin(yaw) * 5.2, Math.max(0, y) + (underSummit ? 0.72 : 1.16), z + Math.cos(yaw) * 5.2);
+      }
       for (const lamp of layout.lamps) {
         if (lamp.meter.group.visible) lamp.meter.group.quaternion.copy(camera.quaternion);
       }

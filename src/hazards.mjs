@@ -171,7 +171,7 @@ function approach(night, shade, position, maxTravel) {
   moveShade(night, shade, dx * distance, dz * distance);
 }
 
-export function moveShades(night) {
+export function moveShades(night, detectPlayer = true) {
   const { tuning, player, number } = night;
   const speed = number === 3 ? tuning.shade_speed_night3 : tuning.shade_speed;
   for (const shade of night.shades) {
@@ -203,7 +203,7 @@ export function moveShades(night) {
       shade.drainTicks = 0;
     }
     const limit = shade.tracking ? tuning.shade_lose_radius : tuning.shade_detect_radius;
-    shade.tracking = distance <= limit && player.respawn === 0;
+    shade.tracking = detectPlayer && distance <= limit && player.respawn === 0;
     shade.state = shade.tracking ? 'chase' : 'wander';
     if (shade.state === 'chase') {
       approach(night, shade, player.pos, speed * DT);

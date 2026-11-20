@@ -1,0 +1,137 @@
+{
+  "environment": {
+    "os": "win32 10.0.26200 x64",
+    "cpu": "12th Gen Intel(R) Core(TM) i7-1255U",
+    "node": "v26.13.1",
+    "chromium": "157.0.8103.80",
+    "gpu": "ANGLE (Intel, Intel(R) Iris(R) Xe Graphics (0x000046A8) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "viewport": "1280x720",
+    "render_buffer": [
+      1280,
+      720
+    ],
+    "device_pixel_ratio": 1
+  },
+  "fps": {
+    "1": {
+      "frames": 301,
+      "duration_ms": 5011,
+      "average_fps": 60.07
+    },
+    "2": {
+      "frames": 301,
+      "duration_ms": 5013,
+      "average_fps": 60.04
+    },
+    "3": {
+      "frames": 301,
+      "duration_ms": 5013,
+      "average_fps": 60.04
+    }
+  },
+  "verified": [
+    "menu",
+    "introductions",
+    "pause_resume",
+    "dash_hud",
+    "loss_and_retry",
+    "no_early_win",
+    "three_night_progression",
+    "total_at_dawn",
+    "settings_persisted",
+    "urgent_timer_and_countdown_audio",
+    "fuel_meter_blink",
+    "torn_collapsed_lantern",
+    "accessible_colors",
+    "refuel_restores_safety",
+    "capacity_hud",
+    "rebind_duplicate_and_persistence",
+    "reduced_motion",
+    "large_text",
+    "event_indicators",
+    "disk_leaderboard"
+  ],
+  "accessibility": {
+    "base_font_px": 18,
+    "large_font_px": 22.5
+  },
+  "leaderboard": [
+    {
+      "name": "May_BinhMinh",
+      "score": 3546,
+      "nights_won": 3,
+      "seed": 1847,
+      "achieved_at": "2026-11-20T16:39:50.816Z"
+    },
+    {
+      "name": "May_Thu",
+      "score": 0,
+      "nights_won": 0,
+      "seed": 1847,
+      "achieved_at": "2026-11-20T16:39:23.878Z"
+    }
+  ],
+  "palette": {
+    "rim_hex": "#00B3FF",
+    "warning": {
+      "color": "rgb(255, 255, 255)",
+      "icon": "\"⚠︎ \""
+    }
+  },
+  "fuel_fixture": {
+    "dim": {
+      "rim": 46079,
+      "halo": 46079,
+      "lamps": [
+        {
+          "scale": 1.13,
+          "tears": false,
+          "safety": false,
+          "bar": true,
+          "fill": 0.3916833333333333,
+          "bar_opacity": 0.4028718707889797,
+          "lantern_opacity": 0.31424005921540415
+        },
+        {
+          "scale": 0.9039999999999999,
+          "tears": true,
+          "safety": false,
+          "bar": false,
+          "fill": 0,
+          "bar_opacity": 1,
+          "lantern_opacity": 0.78
+        }
+      ]
+    },
+    "bright": {
+      "rim": 46079,
+      "halo": 46079,
+      "lamps": [
+        {
+          "scale": 1.13,
+          "tears": false,
+          "safety": false,
+          "bar": true,
+          "fill": 0.38411,
+          "bar_opacity": 0.9843380852144492,
+          "lantern_opacity": 0.7677837064672705
+        },
+        {
+          "scale": 0.9039999999999999,
+          "tears": true,
+          "safety": false,
+          "bar": false,
+          "fill": 0,
+          "bar_opacity": 1,
+          "lantern_opacity": 0.78
+        }
+      ]
+    }
+  },
+  "scores_with_win_fixtures": [
+    1035,
+    1182,
+    1329
+  ],
+  "browser_errors": []
+}

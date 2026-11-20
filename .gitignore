@@ -3,6 +3,8 @@
 !.env.example
 .venv/
 node_modules/
+.data/
+dist/
 playwright-report/
 test-results/
 *.local.jsonl

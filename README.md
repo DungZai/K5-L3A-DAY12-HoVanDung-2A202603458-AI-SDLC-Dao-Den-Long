@@ -1,13 +1,21 @@
 # Day 12 — AI SDLC: Đảo Đèn Lồng
 
+[Video demo MP4](https://github.com/DungZai/K5-L3A-DAY12-HoVanDung-2A202603458-AI-SDLC-Dao-Den-Long/releases/download/v1.0.0/demo.mp4) · [Bản phát hành v1.0.0](https://github.com/DungZai/K5-L3A-DAY12-HoVanDung-2A202603458-AI-SDLC-Dao-Den-Long/releases/tag/v1.0.0)
+
+Đảo Đèn Lồng là game 3D góc nhìn thứ ba. Trong vai Mây, bạn gom đom đóm, xua Bóng Mực và giữ đủ đèn sáng qua ba Đêm.
+
+![Mây trên Đảo Bến ở bản v1.0.0](docs/proof/phase-4-gameplay.png)
+
 ## Chơi Ba hòn đảo
 
-Dùng **Node.js 20+**, npm và trình duyệt có WebGL trên macOS, Linux hoặc Windows. Từ thư mục gốc của repo, chạy:
+Dùng **Node.js 20+**, npm và trình duyệt có WebGL trên macOS, Linux hoặc Windows. Một GPU có tăng tốc đồ họa giúp giữ khung hình ổn định ở 1280×720. Từ thư mục gốc của repo sạch, chạy:
 
 ```sh
 npm ci
 npm start
 ```
+
+Trên Windows PowerShell có thể dùng `npm.cmd ci` và `npm.cmd start`. Gói ZIP phát hành đã kèm Three.js. Sau khi giải nén, chạy `node scripts/serve.mjs` từ thư mục đó. [Hướng dẫn trong gói](docs/release-run.md)
 
 Mở [http://127.0.0.1:8080](http://127.0.0.1:8080) rồi chọn **Bắt đầu hành trình**. Giữ ít nhất **3/5** đèn ở Đảo Bến, **4/6** ở Đảo Cau và **5/7** ở Đảo Chuông tới bình minh. Cầu tre và bục nhảy đưa Mây sang đảo kia. Trên Đảo Chuông, theo dốc lên vành đá rồi dùng bục để lên tháp chuông.
 
@@ -23,7 +31,15 @@ Mở [http://127.0.0.1:8080](http://127.0.0.1:8080) rồi chọn **Bắt đầu 
 
 Đèn mới cần 10 đom đóm. Mỗi đom đóm châm thêm 10 dầu. Đèn dưới 30 dầu nhấp nháy, mất vùng an toàn và có thể bị Bóng Mực hút dầu. Đèn đã cạn cần 5 đom đóm để thắp lại. Mỗi lần thắp thành công tăng sức chứa thêm 2, tối đa 20.
 
-Gió Lạc có thể cướp đom đóm. Tỏa Sáng trúng Gió Lạc đang bỏ chạy sẽ làm rơi lại số đom đóm đã cướp. Bùa Gió tăng tốc và bỏ hồi chiêu Lướt trong 10 giây. Có thể bật **Bảng màu dễ phân biệt** trong Cài đặt. Tùy chọn này được lưu cùng âm lượng và độ nhạy chuột.
+Gió Lạc có thể cướp đom đóm. Tỏa Sáng trúng Gió Lạc đang bỏ chạy sẽ làm rơi lại số đom đóm đã cướp. Bùa Gió tăng tốc và bỏ hồi chiêu Lướt trong 10 giây.
+
+Trong **Cài đặt**, bạn có thể đổi cả chín phím hành động, khôi phục phím mặc định, chọn **Giảm chuyển động**, **Chữ lớn** hoặc **Bảng màu dễ phân biệt**. Các lựa chọn được lưu trong trình duyệt. HUD báo hướng Bóng Mực mới xuất hiện, gió sắp đến, đèn yếu và 10 giây cuối Đêm.
+
+Khi thua hoặc về tới màn Bình Minh cuối cùng, nhập tên dài 3–12 ký tự bằng chữ cái ASCII, chữ số hoặc dấu gạch dưới để lưu tổng điểm các Đêm đã thắng. Mở **Bảng xếp hạng** từ menu để xem top 10. Bản chạy bằng Node lưu tại `.data/leaderboard.json`. Xuất dữ liệu bằng lệnh sau:
+
+```sh
+node scripts/serve.mjs --export-leaderboard leaderboard.json
+```
 
 Mỗi đom đóm **nạp vào đèn** cộng **5 điểm**, thắp lần đầu cộng **100**, thắp lại cộng **40**. Tỏa Sáng cộng **5** mỗi Bóng Mực trúng đòn hoặc **15** nếu con đó đang hút dầu. Khi thắng, cộng **50 cộng phần nguyên dầu** cho mỗi đèn còn sáng và **50** cho mỗi Ngọn Lửa còn lại. Tổng điểm là tổng điểm của các Đêm đã thắng.
 
@@ -35,11 +51,24 @@ npm run proof
 node scripts/headless.mjs --seed 1847 --night 3 --ticks 240 --out run.local.jsonl
 ```
 
-Headless nhận `--night 1`, `2` hoặc `3`. Tùy chọn `--inputs` nhận file khung điều khiển. `--scenario` nhận file thiết lập tình huống. Chế độ headless dùng chung mô phỏng 60 tick/giây với bản 3D theo [Test Contract v1.2](game.contract.json). Xem [tiêu chí nghiệm thu và bằng chứng Phase 3](docs/phase-3.md) và [các thay đổi phá tương thích](CHANGELOG.md). Các tag `phase-1` và `phase-2` chứa contract và bằng chứng của bản tương ứng.
+Headless nhận `--night 1`, `2` hoặc `3`. Tùy chọn `--inputs` nhận file điều khiển. `--scenario` nhận file tình huống. Bản 3D và headless dùng chung mô phỏng 60 tick/giây theo [Test Contract v1.3](game.contract.json).
+
+### Benchmark và soak
+
+```sh
+node scripts/bench.mjs --seed 42 --duration 30 --out bench.json
+node --expose-gc scripts/soak.mjs --seed 7 --nights 10 --out soak.json
+```
+
+Benchmark mặc định mở Chrome, Edge hoặc Chromium trong cửa sổ 1280×720. Nếu máy chưa có trình duyệt tương thích, chạy `npx playwright install chromium`. Biến `LAB_BROWSER` chỉ định đường dẫn trình duyệt khi cần. Trên Linux, chạy trong phiên đồ họa hoặc dùng `xvfb-run`. Tùy chọn `LAB_HEADLESS=1` dành cho kiểm tra CI.
+
+Lệnh dùng cờ `--disable-frame-rate-limit` và `--disable-gpu-vsync` khi mở Chromium. Khởi động 3 giây, sau đó đo đúng khoảng thời gian đã chọn. `peak_mem_mb` bằng `null` vì bản web chạy nhiều tiến trình và phép đo khung hình trong tab không có RSS của tiến trình dựng cảnh theo cách ổn định trên các hệ điều hành. Soak đo RSS của chính tiến trình Node ở hai mốc sau GC. [Cờ Chromium](https://chromium.googlesource.com/chromium/src/%2B/HEAD/components/viz/common/switches.cc)
+
+Số đo trên máy phát triển, cách chạy lại và bằng chứng ở [Phase 4](docs/phase-4.md). Các tag `phase-1` tới `phase-3` giữ contract của từng giai đoạn. [Changelog](CHANGELOG.md) · [Retro](docs/retro.md)
 
 ### Sáng tạo của tôi
 
-Mây mang đèn nhỏ dưới vành nón lá. Đường đá, biển mây chuyển động và quầng sáng vàng quanh đèn nằm trong lớp dựng cảnh. Hai lần chạy cùng dữ liệu tiếp tục cho output giống từng byte trong [bằng chứng Phase 3](docs/proof/phase-3-headless.json).
+Mây mang đèn nhỏ dưới vành nón lá. Đường đá, biển mây chuyển động và quầng sáng vàng quanh đèn nằm trong lớp dựng cảnh. Cảnh benchmark dùng bố trí chuẩn và bỏ cây, đá trang trí và đường lát. Hai lần chạy cùng dữ liệu cho output giống từng byte. [Bằng chứng Phase 4](docs/proof/phase-4-headless.json)
 
 ## Đề bài của lab
 
