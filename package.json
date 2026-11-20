@@ -5,8 +5,8 @@
   "engines": { "node": ">=20" },
   "scripts": {
     "start": "node scripts/serve.mjs",
-    "test": "node --test tests/phase1.test.mjs",
-    "proof": "node scripts/verify-phase1.mjs"
+    "test": "node --test tests/phase1.test.mjs tests/phase2.test.mjs",
+    "proof": "node scripts/verify-phase2.mjs"
   },
   "dependencies": {
     "three": "0.160.1"

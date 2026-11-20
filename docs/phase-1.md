@@ -1,5 +1,7 @@
 # Đêm 1 – Đảo Bến
 
+Tài liệu này ghi nhận bản `phase-1` với Test Contract v1.0. Để tạo lại bằng chứng v1.0, chạy lệnh từ tag đó. Nhánh chính dùng v1.1 và các kiểm tra hồi quy với số chuẩn.
+
 ## Giả định và quyết định
 
 - Một đom đóm bằng một đơn vị ánh sáng. Mây mang tối đa 12 đơn vị. Mỗi đèn cần đủ 4, cộng dồn qua nhiều lần nạp. Khi hai đèn cách Mây bằng nhau, đèn có ID nhỏ hơn được chọn trước.

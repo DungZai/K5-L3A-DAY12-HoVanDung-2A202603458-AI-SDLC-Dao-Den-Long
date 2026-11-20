@@ -3,45 +3,60 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#101a2f">
-  <title>Đảo Đèn Lồng · Đêm 1</title>
+  <meta name="theme-color" content="#0e1430">
+  <title>Đảo Đèn Lồng</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <main id="game" aria-label="Đảo Đèn Lồng">
-    <div id="world" aria-label="Cảnh 3D của Đảo Bến"></div>
-    <header class="hud">
-      <div class="identity">
-        <div class="seal" aria-hidden="true"><i></i></div>
-        <div><h1>Đảo Đèn Lồng</h1><p>Đêm 1 · Đảo Bến</p></div>
+    <div id="world" aria-label="Cảnh 3D"></div>
+    <section id="hud" aria-label="Trạng thái của Mây" hidden>
+      <div class="hud-top">
+        <div class="hud-card identity">
+          <p id="night-label"></p>
+          <div id="flames" class="flames"></div>
+        </div>
+        <div class="hud-card clock"><span>Bình minh</span><strong id="timer">05:00</strong></div>
+        <div class="hud-card result-stats">
+          <div><span>Đèn</span><strong id="lit">0 / 5</strong></div>
+          <div><span>Điểm</span><strong id="score">0</strong></div>
+        </div>
       </div>
-      <dl class="stats" aria-label="Trạng thái của Mây">
-        <div><dt>Sinh lực</dt><dd id="flames">3 / 3</dd></div>
-        <div><dt>Đom đóm</dt><dd id="carried">0 / 12</dd></div>
-        <div><dt>Đã thắp</dt><dd id="lit">0 / 5</dd></div>
-        <div><dt>Bình minh</dt><dd id="timer">03:00</dd></div>
-        <div><dt>Điểm</dt><dd id="score">0</dd></div>
-      </dl>
-    </header>
-    <div class="guidance">
-      <p id="objective">Gom đom đóm và thắp sáng 5 chiếc đèn lớn.</p>
-      <p id="hint" role="status"></p>
-    </div>
-    <footer class="controls" aria-label="Điều khiển">
+      <div id="guide-arrow" class="guide-arrow" hidden aria-label="Hướng đèn chưa sáng gần nhất">↑</div>
+      <div class="hud-bottom">
+        <p id="hint" role="status"></p>
+        <p id="notice" role="status"></p>
+        <div class="hud-card inventory">
+          <div class="inventory-label"><span>Đom đóm</span><strong id="carried">0 / 10</strong></div>
+          <div id="mote-slots" class="mote-slots" aria-hidden="true"></div>
+        </div>
+      </div>
+      <div class="hud-card abilities">
+        <div><kbd>Shift</kbd><span>Lướt</span><strong id="dash-status">Sẵn sàng</strong></div>
+        <div><kbd>Q</kbd><span>Tỏa Sáng</span><strong id="pulse-status">Sẵn sàng</strong></div>
+      </div>
+    </section>
+    <footer id="controls" class="controls" aria-label="Điều khiển" hidden>
       <span><kbd>W A S D</kbd> Di chuyển</span>
       <span><kbd>Space</kbd> Nhảy</span>
       <span><kbd>E</kbd> Nạp đèn</span>
-      <span><kbd>Q</kbd> Tỏa sáng</span>
       <span><kbd>← →</kbd> Xoay góc nhìn</span>
+      <span><kbd>Esc</kbd> Tạm dừng</span>
     </footer>
     <section id="overlay" class="overlay" aria-labelledby="overlay-title">
       <div class="panel">
         <div class="seal" aria-hidden="true"><i></i></div>
-        <p class="chapter">Đêm 1 · Đảo Bến</p>
-        <h2 id="overlay-title">Đảo Đèn Lồng</h2>
-        <p id="overlay-copy">Đưa ánh sáng trở lại hòn đảo trước khi bình minh lên.</p>
-        <button id="begin" type="button" disabled>Đang tải…</button>
+        <p class="chapter" id="overlay-chapter"></p>
+        <h1 id="overlay-title">Đảo Đèn Lồng</h1>
+        <p id="overlay-copy">Đang chuẩn bị đảo…</p>
+        <div id="menu-actions" class="menu-actions"></div>
+        <div id="settings" class="settings" hidden>
+          <label for="volume">Âm lượng <output id="volume-value"></output></label>
+          <input id="volume" type="range" min="0" max="100" step="1">
+          <label for="sensitivity">Độ nhạy chuột <output id="sensitivity-value"></output></label>
+          <input id="sensitivity" type="range" min="25" max="200" step="5">
+        </div>
       </div>
     </section>
   </main>

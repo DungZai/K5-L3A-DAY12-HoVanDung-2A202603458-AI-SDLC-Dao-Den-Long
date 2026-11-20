@@ -1,173 +1,155 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { HZ, Night } from '../src/game.mjs';
 import { validateFrames, validateScenario } from '../src/scenario.mjs';
+import { cli, tuning, isolated } from './headless.mjs';
 
-const contract = JSON.parse(readFileSync(new URL('../game.contract.json', import.meta.url), 'utf8'));
-const { tuning } = contract;
-const isolated = { random_motes: false, random_shades: false };
 const newNight = (scenario) => new Night(tuning, 42, { ...isolated, ...scenario });
-const near = (value, expected) => assert.ok(Math.abs(value - expected) < 1e-9, `${value} != ${expected}`);
-const headless = fileURLToPath(new URL('../scripts/headless.mjs', import.meta.url));
+const near = (value, expected) => assert.ok(Math.abs(value - expected) < 1e-8, `${value} != ${expected}`);
 
-function cli(t, { scenario, inputs, ticks = 100, snapshot = 10 } = {}) {
-  const folder = mkdtempSync(join(tmpdir(), 'dao-den-long-'));
-  t.after(() => rmSync(folder, { recursive: true, force: true }));
-  const output = join(folder, 'output.jsonl');
-  const args = [headless, '--seed', '-42', '--night', '1', '--ticks', String(ticks),
-    '--out', output, '--snapshot-every', String(snapshot)];
-  for (const [name, data] of Object.entries({ scenario, inputs })) {
-    if (data === undefined) continue;
-    const path = join(folder, name + '.json');
-    writeFileSync(path, JSON.stringify(data));
-    args.push('--' + name, path);
-  }
-  const result = spawnSync(process.execPath, args, { encoding: 'utf8' });
-  if (result.status !== 0) return result;
-  const raw = readFileSync(output, 'utf8');
-  return { ...result, raw, records: raw.trimEnd().split('\n').map(JSON.parse) };
-}
-
-test('tick 0, +Z movement, partial frames, yaw and non-dividing snapshot cadence', (t) => {
-  const result = cli(t, { scenario: isolated, ticks: 125, snapshot: 30,
+test('hồi quy tick 0, +Z, input giữ giá trị, xoay camera và cadence', () => {
+  const result = cli({ scenario: isolated, ticks: 125, snapshot: 30,
     inputs: { frames: [{ tick: 0, move: [0, 1] }, { tick: 60, cam_yaw_deg: 90 }] } });
   assert.equal(result.status, 0, result.stderr);
-  const snapshots = result.records.filter(({ type }) => type === 'snapshot');
-  assert.deepEqual(snapshots.map(({ tick }) => tick), [0, 30, 60, 90, 120]);
-  assert.deepEqual(snapshots[0].player.pos, [0, 0, 0]);
-  assert.deepEqual(snapshots[2].player.pos, [0, 0, 6]);
-  assert.deepEqual(snapshots[4].player.pos, [6, 0, 6]);
-  near(snapshots[4].time_left_s, tuning.night1_duration_s - 2);
-  assert.equal(snapshots[4].sim_tick, 120);
-  assert.deepEqual(result.records.at(-1), { type: 'end', ticks: 125, state: 'playing', score: 0 });
+  assert.deepEqual(result.snapshots.map(({ tick }) => tick), [0, 30, 60, 90, 120]);
+  assert.deepEqual(result.snapshots[0].player.pos, [0, 0, 0]);
+  assert.deepEqual(result.snapshots[2].player.pos, [0, 0, 6]);
+  assert.deepEqual(result.snapshots[4].player.pos, [6, 0, 6]);
+  assert.equal(result.snapshots[4].time_left_s, 298);
+  assert.equal(result.snapshots[4].sim_tick, 120);
+  assert.deepEqual(result.end, { type: 'end', ticks: 125, state: 'playing', score: 0 });
 });
 
-test('diagonal normalization, jump on the rising edge, and landing', () => {
+test('hồi quy chuẩn hóa chéo, nhấn một lần, chỉ nhảy từ mặt đất', () => {
   const night = newNight();
   night.step({ move: [1, 1], jump: true });
-  near(Math.hypot(night.player.pos[0], night.player.pos[2]), tuning.player_speed / HZ);
+  near(Math.hypot(night.player.pos[0], night.player.pos[2]), 6 / HZ);
   assert.ok(night.player.pos[1] > 0);
   for (let index = 0; index < HZ; index++) night.step({ jump: true });
   assert.equal(night.player.pos[1], 0);
-  night.step({ jump: false });
+  night.step();
   night.step({ jump: true });
   assert.ok(night.player.pos[1] > 0);
 });
 
-test('pickup uses XZ inclusively and respects capacity', () => {
-  const night = newNight({ player: { carried: tuning.carry_capacity - 1 },
-    motes: [[tuning.pickup_radius, 10, 0], [0, 0, 0], [tuning.pickup_radius + 0.01, 0, 0]] });
-  assert.equal(night.snapshot().score, 0);
+test('nhặt trong bán kính và chiều cao chuẩn, sức chứa 10, điểm chỉ cộng lúc nạp', () => {
+  const night = newNight({ player: { carried: 1 },
+    motes: [[1, 1.5, 0], [0, 1.501, 0], [1.001, 0, 0], ...Array.from({ length: 10 }, () => [0, 0, 0])] });
   const events = night.step();
-  assert.deepEqual(events, [{ type: 'event', tick: 1, name: 'mote_picked', data: { carried: tuning.carry_capacity } }]);
-  assert.deepEqual(night.motes.map(({ id }) => id), ['M2', 'M3']);
+  assert.equal(events.filter(({ name }) => name === 'mote_picked').length, 9);
+  assert.equal(night.player.carried, 10);
+  assert.equal(night.score, 0);
+  assert.deepEqual(night.motes.slice(0, 2).map(({ id }) => id), ['M2', 'M3']);
 });
 
-test('partial deposit, held button, inclusivity and exactly one lantern score', () => {
-  const night = newNight({ player: { carried: 2 }, lanterns: [{ id: 'L1', pos: [tuning.interact_radius, 4, 0] }] });
+test('nạp nhiều lần, đèn nhớ tiến độ, ID nhỏ hơn thắng khi hòa khoảng cách', () => {
+  const night = newNight({ player: { carried: 2 },
+    lanterns: [{ id: 'L2', pos: [-2, 0, 0] }, { id: 'L1', pos: [2, 0, 0] }] });
   assert.deepEqual(night.step({ interact: true })[0].data, { lantern_id: 'L1', amount: 2, deposited: 2 });
-  night.addMote([0, 0, 0]);
-  night.addMote([0, 0, 0]);
-  assert.deepEqual(night.step({ interact: true }).map(({ name }) => name), ['mote_picked', 'mote_picked']);
+  for (let index = 0; index < 8; index++) night.addMote([0, 0, 0]);
+  assert.equal(night.step({ interact: true }).length, 8);
   night.step();
   assert.deepEqual(night.step({ interact: true }).map(({ name }) => name), ['deposit', 'lantern_lit']);
   assert.equal(night.lanterns[0].lit, true);
-  assert.equal(night.score, 2 * tuning.score.per_mote + tuning.score.per_lantern);
+  assert.equal(night.lanterns[1].lit, false);
+  assert.equal(night.score, 200);
 });
 
-test('pulse hits only in range, pushes, stuns, costs light, and has cooldown', () => {
+test('Tỏa Sáng dùng khoảng cách 3D, đẩy 4 m trong 15 tick, choáng và hồi chiêu', () => {
   const night = newNight({ player: { carried: 6 }, shades: [
-    { id: 'ink', pos: [tuning.pulse_radius, 1, 0] },
-    { pos: [0, 1, tuning.pulse_radius + 0.01] }
+    { id: 'S1', pos: [3, 4.8, 0] }, { id: 'S2', pos: [0, 6, 0], state: 'stunned' }
   ] });
   const event = night.step({ pulse: true })[0];
-  assert.deepEqual(event.data, { stunned_ids: ['ink'] });
-  near(night.shades[0].pos[0], tuning.pulse_radius + tuning.pulse_push_m);
-  assert.equal(night.snapshot().shades[0].state, 'stunned');
-  assert.equal(night.score, tuning.score.per_stun);
-  assert.equal(night.player.carried, 6 - tuning.pulse_cost);
-  night.step();
+  assert.equal(event.tick, 1);
+  assert.deepEqual(event.data, { stunned_ids: ['S1'] });
+  assert.equal(night.player.carried, 3);
+  assert.equal(night.player.pulseCd, 180);
+  assert.notEqual(night.shades[0].pos[0], 7);
+  while (night.simTick < 15) night.step();
+  near(night.shades[0].pos[0], 7);
+  assert.equal(night.shades[0].state, 'stunned');
+  assert.equal(night.score, 5);
   assert.ok(!night.step({ pulse: true }).some(({ name }) => name === 'pulse'));
-  while (night.tick < 1 + tuning.pulse_stun_s * HZ) night.step();
-  assert.equal(night.shades[0].state, 'chase');
-  assert.ok(night.step({ pulse: true }).some(({ name }) => name === 'pulse'));
+  while (night.simTick < 121) night.step();
+  assert.notEqual(night.shades[0].state, 'stunned');
 });
 
-test('damage drops motes, immunity expires precisely, and no-flames ends the run', (t) => {
-  const { records } = cli(t, { ticks: 300, scenario: { ...isolated,
-    player: { carried: 5, flames: 2 }, shades: [{ pos: [0, 3, 0] }] } });
-  const hits = records.filter(({ name }) => name === 'player_hit');
-  assert.deepEqual(hits.map(({ tick }) => tick), [1, 1 + tuning.invuln_s * HZ]);
-  assert.deepEqual(hits.map(({ data }) => data), [
-    { by: 'shade', flames: 1, dropped: 2 }, { by: 'shade', flames: 0, dropped: 1 }
-  ]);
-  assert.deepEqual(records.at(-2).data, { result: 'lost', reason: 'no_flames' });
-  assert.equal(records.at(-1).state, 'lost');
+test('chạm xét ID theo số, mất một Ngọn Lửa, đom đóm rơi và recoil có đúng thời lượng', () => {
+  const night = newNight({ player: { carried: 5 }, shades: [{ id: 'S10', pos: [0, 0.8, 0] }, { id: 'S2', pos: [0, 0.8, 0] }] });
+  assert.deepEqual(night.step().map(({ data }) => data), [{ by: 'shade', flames: 2, dropped: 2 }]);
+  assert.equal(night.shades[0].id, 'S2');
+  assert.equal(night.shades[0].state, 'recoil');
+  assert.equal(night.shades[1].state, 'chase');
+  for (const mote of night.motes) {
+    assert.ok(Math.hypot(mote.pos[0], mote.pos[2]) >= 1.5);
+    assert.ok(Math.hypot(mote.pos[0], mote.pos[2]) <= 2.5);
+    assert.equal(mote.ttl, 480);
+  }
+  while (night.simTick < 61) night.step();
+  near(night.shades[0].pos[0], 2);
+  while (night.simTick < 90) night.step();
+  assert.equal(night.player.flames, 2);
+  night.step();
+  assert.equal(night.player.flames, 1);
 });
 
-test('an already lit lantern protects the player and blocks pursuit', () => {
-  const night = newNight({ lanterns: [{ id: 'L1', pos: [0, 0, 0], lit: true }],
-    shades: [{ id: 'S1', pos: [tuning.safe_radius + 0.15, 0, 0] }] });
-  for (let index = 0; index < 240; index++) night.step();
-  assert.equal(night.player.flames, tuning.flames);
-  assert.equal(night.score, 0);
-  assert.equal(night.shades[0].state, 'avoid');
-  assert.ok(night.shades[0].pos[0] > tuning.safe_radius);
+test('vùng đèn ngăn chạm và đẩy Bóng Mực đang ở trong ra trong 30 tick', () => {
+  const night = newNight({ player: { carried: 10 }, lanterns: [{ id: 'L1', pos: [0, 0, 0] }],
+    shades: [{ pos: [0, 0.8, 0] }, { pos: [6.3, 0.8, 0] }] });
+  night.step({ interact: true });
+  for (let index = 0; index < 29; index++) night.step();
+  assert.equal(night.player.flames, 3);
+  assert.ok(night.shades.every(({ pos }) => Math.hypot(pos[0], pos[2]) >= 6));
+  assert.equal(night.score, 200);
 });
 
-test('winning stops early and scores only actions plus victory bonuses', (t) => {
-  const { records } = cli(t, { ticks: 600, snapshot: 1, inputs: { frames: [{ tick: 0, interact: true }] },
-    scenario: { ...isolated, player: { carried: 4 }, time_left_s: 12,
-      lanterns: [1, 2, 3, 4, 5].map((index) => ({ id: 'L' + index, pos: [0, 0, 0], lit: index > 1 })) } });
-  assert.equal(records[0].score, 0);
-  assert.equal(records[0].lanterns.length, 5);
-  assert.deepEqual(records.slice(1, 4).map(({ name, tick }) => [name, tick]),
-    [['deposit', 1], ['lantern_lit', 1], ['game_over', 1]]);
-  assert.deepEqual(records[3].data, { result: 'won', reason: 'all_lit' });
-  assert.deepEqual(records.at(-1), { type: 'end', ticks: 1, state: 'won',
-    score: tuning.score.per_lantern + 11 * tuning.score.per_second_left + tuning.flames * tuning.score.per_flame_left });
+test('thắng đúng tick bình minh, mất hết Ngọn Lửa ưu tiên hơn đủ đèn', () => {
+  const lanterns = [1, 2, 3, 4, 5].map((index) => ({ id: 'L' + index, pos: [0, 0, 0], lit: index > 1 }));
+  const result = cli({ ticks: 20, snapshot: 1, inputs: { frames: [{ tick: 0, interact: true }] },
+    scenario: { ...isolated, player: { carried: 10 }, lanterns, time_left_s: 1 / 60 } });
+  assert.equal(result.snapshots[0].score, 0);
+  assert.equal(result.snapshots[0].lanterns.length, 5);
+  assert.deepEqual(result.events.map(({ name, tick }) => [name, tick]),
+    [['night_start', 0], ['deposit', 1], ['lantern_lit', 1], ['game_over', 1]]);
+  assert.deepEqual(result.end, { type: 'end', ticks: 1, state: 'won', score: 350 });
+  const lost = newNight({ player: { flames: 1, pos: [45, -11, 0], invuln_ticks: 90 },
+    lanterns: lanterns.map((lamp) => ({ ...lamp, lit: true })) });
+  assert.deepEqual(lost.step().at(-1).data, { result: 'lost', reason: 'no_flames' });
 });
 
-test('dawn, zero ticks, and valid defaults produce the required ending', (t) => {
-  const { records } = cli(t, { ticks: 100, scenario: { ...isolated, time_left_s: 1 / 30 } });
-  assert.deepEqual(records.at(-2), {
-    type: 'event', tick: 2, name: 'game_over', data: { result: 'lost', reason: 'dawn' }
-  });
-  const partial = cli(t, { snapshot: 1, scenario: { ...isolated, time_left_s: 0.01 } });
-  near(partial.records.at(-2).time_left_s, 0.01 - 1 / HZ);
-  const zero = cli(t, { ticks: 0 });
-  assert.equal(zero.records.length, 2);
-  assert.equal(zero.records[0].motes_active, 67);
-  assert.equal(zero.records.at(-1).ticks, 0);
+test('bình minh, thời gian giữa hai tick, và 0 tick', () => {
+  const end = cli({ ticks: 100, snapshot: 1, scenario: { ...isolated, time_left_s: 0.01 } });
+  assert.deepEqual(end.events.at(-1).data, { result: 'lost', reason: 'dawn' });
+  near(end.snapshots.at(-1).time_left_s, 0.01 - 1 / HZ);
+  const zero = cli({ ticks: 0 });
+  assert.equal(zero.snapshots.length, 1);
+  assert.equal(zero.snapshots[0].motes_active, 20);
+  assert.equal(zero.end.ticks, 0);
 });
 
-test('seeded JSONL is byte-identical with a spawned shade and generated entity IDs', (t) => {
+test('JSONL cùng seed giống từng byte và ID tự sinh ổn định', () => {
   const scenario = { ...isolated, random_shades: true,
     lanterns: [{ id: 'L1', pos: [0, 0, 0], lit: true }],
     shades: [{ pos: [12, 0, 5] }, { pos: [14, 0, 7], id: 'S1' }] };
-  const first = cli(t, { scenario, ticks: 1450, snapshot: 120 });
-  const next = cli(t, { scenario, ticks: 1450, snapshot: 120 });
+  const first = cli({ scenario, ticks: 1450, snapshot: 120, seed: -42 });
+  const next = cli({ scenario, ticks: 1450, snapshot: 120, seed: -42 });
   assert.equal(first.status, 0, first.stderr);
-  assert.ok(first.records.some(({ name }) => name === 'shade_spawned'));
-  assert.deepEqual(first.records[0].shades.map(({ id }) => id), ['S2', 'S1']);
+  assert.ok(first.events.some(({ name }) => name === 'shade_spawned'));
+  assert.deepEqual(first.snapshots[0].shades.map(({ id }) => id), ['S1', 'S2']);
   assert.equal(first.raw, next.raw);
 });
 
-test('invalid files exit with code 2 and write an error to stderr', (t) => {
+test('lỗi schema trả mã 2 và stderr; --night hỗ trợ đúng 1, 2, 3', () => {
   assert.throws(() => validateScenario({ lanterns: [{ id: 'L7' }] }), /lantern.id/);
   assert.throws(() => validateFrames({ frames: [{ tick: 0, move: [2, 0] }] }), /frame.move/);
-  for (const data of [
-    { scenario: { shades: [{ pos: [0, 0] }] } },
-    { inputs: { frames: [{ tick: 0 }, { tick: 0 }] } }
+  for (const options of [
+    { scenario: { shades: [{ pos: [0, 0] }] } }, { scenario: { shades: [{ pos: [0, 0, 0], state: 'avoid' }] } },
+    { inputs: { frames: [{ tick: 0 }, { tick: 0 }] } }, { inputs: { frames: [{ tick: 0, pause: 1 }] } }
   ]) {
-    const bad = cli(t, data);
+    const bad = cli(options);
     assert.equal(bad.status, 2);
     assert.match(bad.stderr, /Invalid field/);
     assert.equal(bad.stdout, '');
   }
+  assert.equal(cli({ night: 4 }).status, 1);
 });

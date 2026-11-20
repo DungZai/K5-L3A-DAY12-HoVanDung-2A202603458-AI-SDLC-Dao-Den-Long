@@ -18,7 +18,8 @@ function parseArguments(args) {
   for (const required of ['seed', 'night', 'ticks', 'out']) {
     if (!Object.hasOwn(values, required)) throw new Error(`Missing --${required}`);
   }
-  if (values.night !== '1') throw new Error('--night must be 1');
+  if (!['1', '2', '3'].includes(values.night)) throw new Error('--night must be 1, 2, or 3');
+  values.night = Number(values.night);
   for (const [key, min] of [['seed', Number.MIN_SAFE_INTEGER], ['ticks', 0], ['snapshot-every', 1]]) {
     const value = values[key] ?? '10';
     if (!/^[+-]?\d+$/.test(value) || !Number.isSafeInteger(Number(value)) || Number(value) < min) {
@@ -43,14 +44,15 @@ function readInput(file, validate, fallback) {
 
 try {
   const args = parseArguments(process.argv.slice(2));
-  const scenario = readInput(args.scenario, validateScenario, {});
+  const scenario = readInput(args.scenario, (input) => validateScenario(input, args.night), {});
   const timeline = new InputTimeline(readInput(args.inputs, validateFrames, []));
-  const night = new Night(contract.tuning, args.seed, scenario);
+  const night = new Night(contract.tuning, args.seed, scenario, args.night);
   const output = openSync(args.out, 'w');
   const write = (record) => writeSync(output, JSON.stringify(record) + '\n');
   try {
     write(night.snapshot());
-    while (night.tick < args.ticks && night.state === 'playing') {
+    write({ type: 'event', tick: 0, name: 'night_start', data: { night: args.night } });
+    while (night.tick < args.ticks && (night.state === 'playing' || night.state === 'paused')) {
       for (const event of night.step(timeline.forTick(night.tick))) write(event);
       if (night.tick % args['snapshot-every'] === 0) write(night.snapshot());
     }

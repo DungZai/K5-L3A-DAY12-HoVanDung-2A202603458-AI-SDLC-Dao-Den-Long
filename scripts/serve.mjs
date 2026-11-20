@@ -8,6 +8,10 @@ const files = new Map([
   ['/game.contract.json', 'game.contract.json'],
   ['/src/main.mjs', 'src/main.mjs'],
   ['/src/game.mjs', 'src/game.mjs'],
+  ['/src/maps.mjs', 'src/maps.mjs'],
+  ['/src/player.mjs', 'src/player.mjs'],
+  ['/src/hazards.mjs', 'src/hazards.mjs'],
+  ['/src/audio.mjs', 'src/audio.mjs'],
   ['/src/scene.mjs', 'src/scene.mjs'],
   ['/vendor/three.module.js', 'node_modules/three/build/three.module.js']
 ]);
@@ -43,5 +47,11 @@ const server = createServer((request, response) => {
       stream.pipe(response);
     }
   });
+});
+server.on('error', (error) => {
+  console.error(error.code === 'EADDRINUSE'
+    ? `Cổng ${port} đang được sử dụng. Mở phiên hiện có hoặc khởi chạy với biến PORT khác.`
+    : error.message);
+  process.exitCode = 1;
 });
 server.listen(port, '127.0.0.1', () => console.log(`Đảo Đèn Lồng · http://127.0.0.1:${server.address().port}`));

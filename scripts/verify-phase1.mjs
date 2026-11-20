@@ -7,7 +7,11 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Night } from '../src/game.mjs';
 
-const { tuning } = JSON.parse(readFileSync(new URL('../game.contract.json', import.meta.url), 'utf8'));
+const { tuning, contract_version } = JSON.parse(readFileSync(new URL('../game.contract.json', import.meta.url), 'utf8'));
+if (contract_version !== '1.0') {
+  console.error('Dùng tag phase-1 để tạo lại bằng chứng theo Test Contract v1.0.');
+  process.exit(1);
+}
 const script = fileURLToPath(new URL('./headless.mjs', import.meta.url));
 const evidence = new URL('../docs/proof/', import.meta.url);
 const seed = 1847;

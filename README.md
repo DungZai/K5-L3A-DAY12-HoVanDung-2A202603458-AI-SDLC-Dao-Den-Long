@@ -1,6 +1,6 @@
 # Day 12 — AI SDLC: Đảo Đèn Lồng
 
-## Chơi Đêm 1 – Đảo Bến
+## Chơi Ba hòn đảo
 
 Dùng **Node.js 20+**, npm và trình duyệt có WebGL trên macOS, Linux hoặc Windows. Từ thư mục gốc của repo, chạy:
 
@@ -9,31 +9,35 @@ npm ci
 npm start
 ```
 
-Mở [http://127.0.0.1:8080](http://127.0.0.1:8080) rồi chọn **Bắt đầu**. Gom đom đóm, thắp đủ cả 5 đèn và giữ sinh lực trước khi bình minh lên. Khi kết thúc, chọn **Chơi lại** để khởi động lại Đêm 1.
+Mở [http://127.0.0.1:8080](http://127.0.0.1:8080) rồi chọn **Bắt đầu hành trình**. Lần lượt thắp 5 đèn ở Đảo Bến, 6 đèn ở Đảo Cau và 7 đèn ở Đảo Chuông. Cầu tre và bục nhảy đưa Mây sang đảo kia. Trên Đảo Chuông, theo dốc lên vành đá rồi dùng bục để lên tháp chuông.
 
 | Phím | Hành động |
 |---|---|
 | W, A, S, D | Di chuyển theo góc nhìn |
 | Space | Nhảy |
+| Shift | Lướt theo hướng di chuyển hoặc hướng đang quay mặt |
 | E | Nạp tối đa số đom đóm còn thiếu cho đèn chưa sáng gần nhất |
-| Q | Dùng 2 đom đóm để hất lùi và làm choáng Bóng Mực trong phạm vi |
+| Q | Dùng 3 đom đóm để Tỏa Sáng |
 | ←, → hoặc kéo chuột | Xoay camera quanh Mây |
+| Esc hoặc P | Mở hoặc đóng menu tạm dừng |
 
-Mỗi đom đóm nhặt được cộng **10 điểm**, mỗi đèn thắp mới cộng **100**, mỗi Bóng Mực bị choáng cộng **25**. Khi thắng, cộng **2 điểm mỗi giây nguyên còn lại** và **50 điểm mỗi sinh lực còn lại**. Đụng Bóng Mực làm mất một sinh lực và đánh rơi một nửa số đom đóm đang giữ, làm tròn xuống. Đèn đã sáng tạo vùng an toàn. Mây dừng ở mép đảo nên `fall_enabled` bằng `false`.
+Gió Lạc có thể cướp đom đóm. Tỏa Sáng trúng Gió Lạc đang bỏ chạy sẽ làm rơi lại số đom đóm đã cướp. Bùa Gió tăng tốc và bỏ hồi chiêu Lướt trong 10 giây. Cài đặt âm lượng và độ nhạy được lưu trong trình duyệt.
+
+Mỗi đom đóm **nạp vào đèn** cộng **10 điểm**, mỗi đèn thắp mới cộng **100**, mỗi Bóng Mực trúng Tỏa Sáng cộng **5**. Khi thắng, cộng **2 điểm mỗi giây nguyên còn lại** và **50 điểm mỗi Ngọn Lửa còn lại**. Tổng điểm là tổng điểm của các Đêm đã thắng.
 
 ### Chạy test và headless
 
 ```sh
 npm test
 npm run proof
-node scripts/headless.mjs --seed 1847 --night 1 --inputs docs/proof/phase-1-route.json --ticks 10800 --snapshot-every 600 --out run.local.jsonl
+node scripts/headless.mjs --seed 1847 --night 3 --ticks 240 --out run.local.jsonl
 ```
 
-Hai tùy chọn `--inputs` và `--scenario` lần lượt nhận file khung điều khiển và file thiết lập tình huống. Chế độ headless dùng cùng mô phỏng 60 tick/giây với bản 3D. Các thông số thực tế nằm trong [game.contract.json](game.contract.json). Xem giả định, tiêu chí nghiệm thu và kết quả tại [ghi chép Phase 1](docs/phase-1.md).
+Headless nhận `--night 1`, `2` hoặc `3`. Tùy chọn `--inputs` nhận file khung điều khiển. `--scenario` nhận file thiết lập tình huống. Chế độ headless dùng chung mô phỏng 60 tick/giây với bản 3D theo [Test Contract v1.1](game.contract.json). Xem [tiêu chí nghiệm thu và bằng chứng Phase 2](docs/phase-2.md). Có thể tái tạo bằng chứng v1.0 từ tag `phase-1`.
 
 ### Sáng tạo của tôi
 
-Mây mang đèn nhỏ dưới vành nón lá. Đường đá, biển mây chuyển động và quầng sáng vàng quanh mỗi đèn tạo cảm giác đảo nổi dần hiện ra trong đêm. Các chi tiết này nằm trong lớp dựng cảnh. Lộ trình headless mặc định và phép so sánh hai lần chạy được lưu trong [bằng chứng Phase 1](docs/proof/phase-1-summary.json).
+Mây mang đèn nhỏ dưới vành nón lá. Đường đá, biển mây chuyển động và quầng sáng vàng quanh đèn nằm trong lớp dựng cảnh. Hai lần chạy cùng dữ liệu tiếp tục cho output giống từng byte trong [bằng chứng Phase 2](docs/proof/phase-2-headless.json).
 
 ## Đề bài của lab
 
