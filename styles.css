@@ -51,12 +51,16 @@ body { margin: 0; overflow: hidden; }
 .hud-card strong { font-size: .97rem; font-variant-numeric: tabular-nums; }
 .clock strong { display: block; font-size: 1.43rem; line-height: 1.11; margin-top: 3px; }
 .clock .urgent { color: var(--danger); animation: urgent .85s ease-in-out infinite alternate; }
+.accessible-palette { --danger: #fff; }
+.accessible-palette .clock .urgent::before,
+.accessible-palette #hint.fuel-warning::before { content: '⚠︎ '; }
 @keyframes urgent { to { opacity: .45; } }
 @media (prefers-reduced-motion: reduce) { .clock .urgent { animation: none; } }
 .result-stats { display: flex; justify-self: end; padding-inline: 8px; }
 .result-stats div { padding-inline: 12px; text-align: center; }
 .result-stats div + div { border-left: 1px solid var(--line); }
 .result-stats strong { display: block; margin-top: 3px; }
+.result-stats small { display: block; margin-top: 2px; color: var(--cream); font-size: .64rem; white-space: nowrap; }
 .result-stats div:last-child strong, .inventory strong { color: var(--gold); }
 .hud-bottom { position: absolute; left: 50%; bottom: 67px; transform: translateX(-50%); text-align: center; }
 .hud-bottom p {
@@ -69,6 +73,7 @@ body { margin: 0; overflow: hidden; }
   text-shadow: 0 2px 6px #01030d, 0 0 16px #01030d;
 }
 .hud-bottom p:empty { display: none; }
+#hint.fuel-warning { color: var(--danger); }
 .inventory { padding-inline: 12px; }
 .inventory-label { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
 .mote-slots { display: flex; gap: 4px; }
@@ -195,6 +200,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid #fff6c2; outline-
 .settings label { display: flex; justify-content: space-between; }
 .settings output { color: var(--gold); }
 .settings input { width: 100%; accent-color: var(--gold); margin: 0 0 6px; }
+.settings .settings-toggle { align-items: center; gap: 12px; margin-top: 4px; }
+.settings-toggle input { width: 1.15rem; height: 1.15rem; margin: 0; cursor: pointer; }
 @media (max-width: 940px) {
   .hud-top { inset: 12px 12px auto; }
   .abilities { right: 12px; bottom: 54px; }

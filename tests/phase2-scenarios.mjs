@@ -36,6 +36,7 @@ export const phase2Cases = {
   },
   'drifter-spawn': { night: 2, scenario: { ...isolated, random_drifters: true }, ticks: 2400, snapshot: 600 },
   wind: { seed: 928, night: 3, scenario: { ...isolated, wind_enabled: true }, ticks: 2101, snapshot: 1 },
-  performance: { night: 3, ticks: 21600, snapshot: 600, scenario: { wind_enabled: false, random_drifters: false,
+  performance: { night: 3, ticks: 18000, snapshot: 600, scenario: { wind_enabled: false, random_drifters: false,
+    player: { invuln_ticks: 18001 },
     lanterns: [{ id: 'L1', lit: true, pos: [0, 0, 0] }] } }
 };

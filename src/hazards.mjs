@@ -1,4 +1,5 @@
 import { floorAt, hitsTower } from './maps.mjs';
+import { DRAIN_ALERT_RADIUS, DRAIN_RADIUS, drainTarget, isSafe, isWeak } from './lanterns.mjs';
 
 const DT = 1 / 60;
 const EJECT_TICKS = 30;
@@ -55,10 +56,12 @@ function escapePoint(pos, lights, radius) {
 
 export function updateSafety(night) {
   const { lanterns, tuning, player } = night;
-  night.safeLights = lanterns.filter((lantern) => lantern.lit);
+  night.safeLights = lanterns.filter((lantern) => isSafe(lantern, tuning));
   night.playerSafe = night.safeLights.some((lantern) => distanceXZ(lantern.pos, player.pos) <= tuning.safe_radius);
   for (const shade of night.shades) {
     shade.ejectedThisTick = false;
+    shade.drainInterrupted = shade.state === 'drain' && !drainTarget(night, shade);
+    if (shade.drainInterrupted) startWander(shade);
     if (!night.safeLights.some((lantern) => distanceXZ(lantern.pos, shade.pos) <= tuning.safe_radius)) {
       shade.ejection = null;
     } else if (!shade.ejection || night.safeLights.some((lantern) =>
@@ -117,13 +120,15 @@ export function activatePulse(night) {
   for (const shade of night.shades) {
     if (shade.state === 'spawning' && shade.remaining > 0) continue;
     if (distance3D(center, shade.pos) > tuning.pulse_radius) continue;
+    night.score += shade.state === 'drain' ? tuning.score.per_drain_stun : tuning.score.per_stun;
     shade.state = 'stunned';
+    shade.targetLanternId = null;
+    shade.drainTicks = 0;
     shade.remaining = Math.round(tuning.pulse_stun_s * 60);
     shade.impulse = { direction: direction(center, shade.pos), left: PULSE_PUSH_TICKS,
       step: tuning.pulse_push_m / PULSE_PUSH_TICKS };
     stunnedIds.push(shade.id);
   }
-  night.score += stunnedIds.length * tuning.score.per_stun;
   night.event('pulse', { stunned_ids: stunnedIds });
   for (const drifter of night.drifters) {
     if (distance3D(center, drifter.pos) > tuning.pulse_radius) continue;
@@ -139,10 +144,39 @@ export function activatePulse(night) {
   }
 }
 
+function startWander(shade) {
+  shade.state = 'wander';
+  shade.tracking = false;
+  shade.targetLanternId = null;
+  shade.drainTicks = 0;
+}
+
+function closestLantern(shade, lanterns, accepts) {
+  let nearest = null;
+  let distance = Infinity;
+  for (const lantern of lanterns) {
+    if (!accepts(lantern)) continue;
+    const separation = distanceXZ(shade.pos, lantern.pos);
+    if (separation < distance) {
+      nearest = lantern;
+      distance = separation;
+    }
+  }
+  return nearest;
+}
+
+function approach(night, shade, position, maxTravel) {
+  const [dx, dz] = direction(shade.pos, position);
+  const distance = Math.min(distanceXZ(shade.pos, position), maxTravel);
+  moveShade(night, shade, dx * distance, dz * distance);
+}
+
 export function moveShades(night) {
   const { tuning, player, number } = night;
   const speed = number === 3 ? tuning.shade_speed_night3 : tuning.shade_speed;
   for (const shade of night.shades) {
+    const stunFinished = shade.state === 'stunned' && shade.remaining === 0 && !shade.impulse;
+    if (stunFinished) startWander(shade);
     if (shade.ejection) {
       const { target, left } = shade.ejection;
       shade.pos = shade.pos.map((value, axis) => value + (target[axis] - value) / left);
@@ -150,28 +184,45 @@ export function moveShades(night) {
       if (--shade.ejection.left === 0) shade.ejection = null;
       continue;
     }
+    if (stunFinished || (shade.drainInterrupted && shade.state === 'wander')) continue;
     if (shade.impulse) {
       const impulse = shade.impulse;
       const [dx, dz] = impulse.direction;
       const clear = moveShade(night, shade, dx * impulse.step, dz * impulse.step);
       if (!clear || --impulse.left === 0) shade.impulse = null;
-      if (shade.remaining === 0 && shade.impulse === null) shade.state = 'wander';
+      if (shade.remaining === 0 && shade.impulse === null) startWander(shade);
       continue;
     }
     if (shade.remaining > 0 && ['spawning', 'stunned', 'recoil'].includes(shade.state)) continue;
     const distance = distanceXZ(shade.pos, player.pos);
+    if (shade.state === 'drain') {
+      if (distance > DRAIN_ALERT_RADIUS || player.respawn > 0) continue;
+      shade.state = 'chase';
+      shade.tracking = true;
+      shade.targetLanternId = null;
+      shade.drainTicks = 0;
+    }
     const limit = shade.tracking ? tuning.shade_lose_radius : tuning.shade_detect_radius;
     shade.tracking = distance <= limit && player.respawn === 0;
     shade.state = shade.tracking ? 'chase' : 'wander';
     if (shade.state === 'chase') {
-      const [dx, dz] = direction(shade.pos, player.pos);
-      const move = Math.min(speed * DT, distance);
-      moveShade(night, shade, dx * move, dz * move);
-    } else {
-      const [dx, dz] = heading(shade.angle);
-      if (!moveShade(night, shade, dx * speed * DT, dz * speed * DT)) {
-        shade.angle += Math.PI * (0.7 + night.random() * 0.6);
+      approach(night, shade, player.pos, speed * DT);
+      continue;
+    }
+    const weak = closestLantern(shade, night.lanterns, (lantern) => isWeak(lantern, tuning));
+    const target = weak ?? closestLantern(shade, night.lanterns, (lantern) => !lantern.lit);
+    if (target) {
+      if (!weak || distanceXZ(shade.pos, weak.pos) > DRAIN_RADIUS) approach(night, shade, target.pos, speed * DT);
+      if (weak && distanceXZ(shade.pos, weak.pos) <= DRAIN_RADIUS) {
+        shade.state = 'drain';
+        shade.targetLanternId = weak.id;
+        shade.drainTicks = 0;
       }
+      continue;
+    }
+    const [dx, dz] = heading(shade.angle);
+    if (!moveShade(night, shade, dx * speed * DT, dz * speed * DT)) {
+      shade.angle += Math.PI * (0.7 + night.random() * 0.6);
     }
   }
 }

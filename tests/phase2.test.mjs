@@ -14,10 +14,10 @@ function scenario(name) {
 const near = (actual, expected, epsilon = 0.002) =>
   assert.ok(Math.abs(actual - expected) <= epsilon, `${actual} != ${expected}`);
 
-test('contract v1.1 và số chuẩn, 3 bản đồ và hình học chuẩn', () => {
-  assert.equal(contract.contract_version, '1.1');
+test('contract hiện tại và số chuẩn, 3 bản đồ và hình học chuẩn', () => {
+  assert.equal(contract.contract_version, '1.2');
   assert.deepEqual([tuning.dash_speed, tuning.dash_duration_s, tuning.dash_cooldown_s], [14, 0.2, 1.5]);
-  assert.deepEqual([tuning.night1_duration_s, tuning.night2_duration_s, tuning.night3_duration_s], [300, 330, 360]);
+  assert.deepEqual([tuning.night1_duration_s, tuning.night2_duration_s, tuning.night3_duration_s], [240, 270, 300]);
   for (const number of [1, 2, 3]) {
     const zero = cli({ night: number, ticks: 0 });
     assert.equal(zero.status, 0, zero.stderr);
@@ -194,12 +194,12 @@ test('gió Đảo Chuông bắt đầu tick 1800, đẩy 2 m/s và hết sau 5 g
   near(Math.hypot(run.at(2100).player.pos[0], run.at(2100).player.pos[2]), 10);
 });
 
-test('chạy đầy đủ 21.600 tick trong tối đa 30 giây', () => {
+test('chạy đầy đủ 18.000 tick theo thời lượng mới trong tối đa 30 giây', () => {
   const run = scenario('performance');
-  assert.equal(run.end.ticks, 21600);
+  assert.equal(run.end.ticks, 18000);
   assert.equal(run.end.state, 'lost');
   assert.ok(run.elapsedMs <= 30000, String(run.elapsedMs));
-  assert.equal(run.snapshots.at(-1).sim_tick, 21600);
+  assert.equal(run.snapshots.at(-1).sim_tick, 18000);
 });
 
 test('đom đóm rơi hết TTL nếu không nhặt', () => {

@@ -1,11 +1,13 @@
 import * as THREE from '/vendor/three.module.js';
 import { seededRandom } from './game.mjs';
+import { FUEL_SCALE, isSafe, isWeak } from './lanterns.mjs';
 
 const COLORS = {
   sky: 0x0e1430, fog: 0x1b2350, grass: 0x2f5d50, sand: 0xc9b48a, wood: 0x6b4a2f,
   cloud: 0x12384a, lamp: 0xffb347, core: 0xffe9b0, unlit: 0x5b5f6e,
   mote: 0xfff6c2, moteHalo: 0xffe58a, ink: 0x120a1a, rim: 0x7a3cff,
-  stunned: 0x3a3450, coat: 0xe8e2d0, cloth: 0xc8102e, gold: 0xf2c14e, drifter: 0x8fa3b8
+  stunned: 0x3a3450, coat: 0xe8e2d0, cloth: 0xc8102e, gold: 0xf2c14e, drifter: 0x8fa3b8,
+  rimAccessible: 0x00b3ff
 };
 const solid = (color) => new THREE.MeshLambertMaterial({ color, flatShading: true });
 const light = (color) => new THREE.MeshBasicMaterial({ color });
@@ -29,6 +31,8 @@ const ring = new THREE.RingGeometry(0.96, 1, 64);
 const plane = new THREE.PlaneGeometry(1, 1);
 const ember = new THREE.IcosahedronGeometry(0.18, 0);
 const shadeBody = new THREE.IcosahedronGeometry(0.58, 1);
+const lampScale = 1.13;
+const meterWidth = 1.42;
 
 function mesh(parent, geometry, material, x = 0, y = 0, z = 0) {
   const object = new THREE.Mesh(geometry, material);
@@ -99,7 +103,40 @@ function lanternModel(parent, texture, size, height) {
     ribPoses.push([0.382 * Math.cos(angle), 0, 0.382 * Math.sin(angle), 1, -angle]);
   }
   stamp(group, ribs, wood, ribPoses);
-  return { paper, core, glow: sprite(group, beam(texture, COLORS.lamp, 0.78), 3.8) };
+  return { housing: group, paper, core, glow: sprite(group, beam(texture, COLORS.lamp, 0.78), 3.8) };
+}
+
+function buildTears(housing) {
+  const tears = new THREE.Group();
+  housing.add(tears);
+  const tear = new THREE.Shape();
+  tear.moveTo(-0.14, 0.28);
+  tear.lineTo(-0.02, 0.15);
+  tear.lineTo(-0.09, 0.12);
+  tear.lineTo(0.067, -0.2);
+  tear.lineTo(-0.018, 0.06);
+  tear.lineTo(0.054, 0.09);
+  tear.closePath();
+  const geometry = new THREE.ShapeGeometry(tear);
+  const exposed = light(0x191823);
+  for (let i = 0; i < 4; i++) {
+    const angle = Math.PI / 8 + i * Math.PI / 2;
+    const patch = mesh(tears, geometry, exposed, 0.382 * Math.sin(angle), 0.024, 0.382 * Math.cos(angle));
+    patch.rotation.set(-0.078, angle, 0, 'YXZ');
+  }
+  return tears;
+}
+
+function buildFuelMeter(parent) {
+  const group = new THREE.Group();
+  parent.add(group);
+  group.position.y = 4.08;
+  const material = (color) => new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false });
+  const track = mesh(group, plane, material(0x191823));
+  track.scale.set(meterWidth + 0.1, 0.21, 1);
+  const fill = mesh(group, plane, material(COLORS.gold), 0, 0, 0.002);
+  fill.scale.y = 0.13;
+  return { group, track, fill };
 }
 
 function buildLamp(parent, texture, tuning) {
@@ -108,7 +145,9 @@ function buildLamp(parent, texture, tuning) {
   mesh(group, new THREE.CylinderGeometry(0.72, 0.95, 0.3, 8), sand, 0, 0.15);
   mesh(group, new THREE.CylinderGeometry(0.095, 0.15, 2.28, 7), wood, 0, 1.19);
   mesh(group, new THREE.BoxGeometry(1.26, 0.1, 0.12), wood, 0, 2.38);
-  return { group, ...lanternModel(group, texture, 1.13, 2.94),
+  const lightModel = lanternModel(group, texture, lampScale, 2.94);
+  return { group, ...lightModel, tears: buildTears(lightModel.housing),
+    meter: buildFuelMeter(group), dimPaper: light(COLORS.lamp), dimCore: light(COLORS.core),
     interaction: groundRing(group, COLORS.gold, tuning.interact_radius, 0.44),
     safety: groundRing(group, COLORS.lamp, tuning.safe_radius, 0.17),
     pool: groundGlow(group, texture, COLORS.lamp, 13, 0.74) };
@@ -357,6 +396,11 @@ export function createScene(container, tuning) {
   return {
     glow(position) { pulseAge = 0; pulsePos = [...position]; },
     reset() { pulseAge = Infinity; },
+    setAccessiblePalette(enabled) {
+      const color = enabled ? COLORS.rimAccessible : COLORS.rim;
+      rim.color.setHex(color);
+      shadeHalo.color.setHex(color);
+    },
     visible(position) {
       projected.set(position[0], position[1] + 1.8, position[2]).project(camera);
       return Math.abs(projected.x) < 0.94 && Math.abs(projected.y) < 0.9 && projected.z < 1 && projected.z > -1;
@@ -386,10 +430,27 @@ export function createScene(container, tuning) {
       let litCount = 0;
       for (const [index, lantern] of night.lanterns.entries()) {
         const lamp = layout.lamps[index];
+        const weak = isWeak(lantern, tuning);
+        const intensity = weak ? 0.68 + 0.32 * Math.cos(2 * Math.PI * night.simTick / 60) : 1;
+        const ratio = lantern.fuel / (tuning.fuel_max * FUEL_SCALE);
         lamp.group.position.set(...lantern.pos);
-        lamp.paper.material = lantern.lit ? lampOn : lampOff;
-        lamp.glow.visible = lamp.core.visible = lamp.pool.visible = lamp.safety.visible = lantern.lit;
+        lamp.housing.scale.setScalar(lampScale * (lantern.lit ? 1 : 0.8));
+        lamp.tears.visible = !lantern.lit;
+        lamp.paper.material = lantern.lit ? (weak ? lamp.dimPaper : lampOn) : lampOff;
+        lamp.core.material = weak ? lamp.dimCore : wick;
+        if (weak) {
+          lamp.dimPaper.color.copy(lampOn.color).multiplyScalar(intensity);
+          lamp.dimCore.color.copy(wick.color).multiplyScalar(intensity);
+        }
+        lamp.glow.visible = lamp.core.visible = lamp.pool.visible = lamp.meter.group.visible = lantern.lit;
+        lamp.glow.material.opacity = 0.78 * intensity;
+        lamp.pool.material.opacity = 0.74 * intensity;
+        lamp.safety.visible = isSafe(lantern, tuning);
         lamp.interaction.visible = !lantern.lit;
+        lamp.meter.track.material.opacity = 0.88 * intensity;
+        lamp.meter.fill.material.opacity = intensity;
+        lamp.meter.fill.scale.x = meterWidth * ratio;
+        lamp.meter.fill.position.x = (lamp.meter.fill.scale.x - meterWidth) / 2;
         if (lantern.lit) litCount++;
       }
       ambient.intensity = 0.15 + 0.55 * litCount / night.lanterns.length;
@@ -457,6 +518,9 @@ export function createScene(container, tuning) {
       const eye = underSummit ? 3.55 : 6.25;
       camera.position.set(x - Math.sin(yaw) * 10.5, Math.max(1.1, y + eye), z - Math.cos(yaw) * 10.5);
       camera.lookAt(x + Math.sin(yaw) * 5.2, Math.max(0, y) + (underSummit ? 0.72 : 1.16), z + Math.cos(yaw) * 5.2);
+      for (const lamp of layout.lamps) {
+        if (lamp.meter.group.visible) lamp.meter.group.quaternion.copy(camera.quaternion);
+      }
       renderer.render(scene, camera);
     }
   };

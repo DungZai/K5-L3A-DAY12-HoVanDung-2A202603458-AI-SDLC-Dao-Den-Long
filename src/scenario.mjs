@@ -3,7 +3,7 @@ const isNumber = (value) => typeof value === 'number' && Number.isFinite(value);
 const isCount = (value) => Number.isSafeInteger(value) && value >= 0;
 const isPosition = (value) => Array.isArray(value) && value.length === 3 && value.every(isNumber);
 const isId = (value) => typeof value === 'string' && value.length > 0;
-const shadeStates = new Set(['spawning', 'wander', 'chase', 'recoil', 'stunned']);
+const shadeStates = new Set(['spawning', 'wander', 'chase', 'recoil', 'stunned', 'drain']);
 const drifterStates = new Set(['idle', 'chase', 'flee', 'removed']);
 
 function check(valid, name) {
@@ -55,23 +55,27 @@ export function validateScenario(scenario, night = 1) {
     optional(scenario.player, 'pos', isPosition, 'player.pos');
     optional(scenario.player, 'carried', isCount, 'player.carried');
     optional(scenario.player, 'flames', isCount, 'player.flames');
+    optional(scenario.player, 'successful_lights', isCount, 'player.successful_lights');
     for (const field of ['invuln_ticks', 'dash_cd_ticks', 'pulse_cd_ticks', 'charm_ticks']) {
       optional(scenario.player, field, isCount, `player.${field}`);
     }
   }
+  const lanternId = (id) => typeof id === 'string' && /^L[1-7]$/.test(id) && Number(id[1]) <= night + 4;
   if (scenario.motes) check(scenario.motes.every(isPosition), 'motes[]');
   checkEntries(scenario.shades ?? [], 'shades[]', (entry) => {
     check(isPosition(entry.pos), 'shade.pos');
     optional(entry, 'id', isId, 'shade.id');
     optional(entry, 'state', (value) => shadeStates.has(value), 'shade.state');
     optional(entry, 'state_ticks_left', isCount, 'shade.state_ticks_left');
+    optional(entry, 'target_lantern_id', (value) => value === null || lanternId(value), 'shade.target_lantern_id');
   });
   checkEntries(scenario.lanterns ?? [], 'lanterns[]', (entry) => {
-    check(typeof entry.id === 'string' && /^L[1-7]$/.test(entry.id)
-      && Number(entry.id[1]) <= night + 4, 'lantern.id');
+    check(lanternId(entry.id), 'lantern.id');
     optional(entry, 'pos', isPosition, 'lantern.pos');
     optional(entry, 'deposited', isCount, 'lantern.deposited');
     optional(entry, 'lit', (value) => typeof value === 'boolean', 'lantern.lit');
+    optional(entry, 'fuel', (value) => isNumber(value) && value >= 0 && value <= 100, 'lantern.fuel');
+    optional(entry, 'ever_lit', (value) => typeof value === 'boolean', 'lantern.ever_lit');
   });
   checkEntries(scenario.drifters ?? [], 'drifters[]', (entry) => {
     check(isPosition(entry.pos), 'drifter.pos');

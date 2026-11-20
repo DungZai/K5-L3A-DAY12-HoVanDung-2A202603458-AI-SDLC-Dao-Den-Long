@@ -17,9 +17,9 @@
           <p id="night-label"></p>
           <div id="flames" class="flames"></div>
         </div>
-        <div class="hud-card clock"><span>Bình minh</span><strong id="timer">05:00</strong></div>
+        <div class="hud-card clock"><span>Bình minh</span><strong id="timer">04:00</strong></div>
         <div class="hud-card result-stats">
-          <div><span>Đèn</span><strong id="lit">0 / 5</strong></div>
+          <div><span>Đèn</span><strong id="lit">0 / 5</strong><small id="light-goal"></small></div>
           <div><span>Điểm</span><strong id="score">0</strong></div>
         </div>
       </div>
@@ -56,6 +56,9 @@
           <input id="volume" type="range" min="0" max="100" step="1">
           <label for="sensitivity">Độ nhạy chuột <output id="sensitivity-value"></output></label>
           <input id="sensitivity" type="range" min="25" max="200" step="5">
+          <label class="settings-toggle" for="colorblind">Bảng màu dễ phân biệt
+            <input id="colorblind" type="checkbox">
+          </label>
         </div>
       </div>
     </section>

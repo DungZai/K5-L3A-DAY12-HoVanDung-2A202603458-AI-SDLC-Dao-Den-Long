@@ -1,6 +1,7 @@
 import { HZ, Night } from './game.mjs';
 import { MAPS } from './maps.mjs';
 import { GameSound } from './audio.mjs';
+import { fuelAmount, isWeak, lightCost } from './lanterns.mjs';
 import { createScene } from './scene.mjs';
 
 const elements = Object.fromEntries(Array.from(document.querySelectorAll('[id]'), (element) => [element.id, element]));
@@ -9,19 +10,20 @@ const keyActions = new Map([
   ['ShiftRight', 'dash'], ['Escape', 'pause'], ['KeyP', 'pause']
 ]);
 const movementKeys = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowLeft', 'ArrowRight']);
-const sounds = new Set(['mote_picked', 'lantern_lit', 'pulse', 'player_hit', 'dash', 'shade_spawned', 'charm_picked']);
+const sounds = new Set(['mote_picked', 'lantern_lit', 'refuel', 'pulse', 'player_hit', 'dash', 'shade_spawned', 'charm_picked']);
 const timeLabel = (seconds) => [Math.floor(seconds / 60), seconds % 60]
   .map((value) => String(value).padStart(2, '0')).join(':');
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const settingsKey = 'dao-den-long-settings';
 
 function readSettings() {
-  const defaults = { volume: 65, sensitivity: 100 };
+  const defaults = { volume: 65, sensitivity: 100, colorblind: false };
   try {
     const saved = JSON.parse(localStorage.getItem(settingsKey) ?? '{}') ?? {};
     return {
       volume: Number.isFinite(saved.volume) ? clamp(saved.volume, 0, 100) : defaults.volume,
-      sensitivity: Number.isFinite(saved.sensitivity) ? clamp(saved.sensitivity, 25, 200) : defaults.sensitivity
+      sensitivity: Number.isFinite(saved.sensitivity) ? clamp(saved.sensitivity, 25, 200) : defaults.sensitivity,
+      colorblind: saved.colorblind === true
     };
   } catch {
     return defaults;
@@ -54,7 +56,7 @@ async function startGame() {
   let notice = '';
   let noticeUntil = 0;
 
-  const slots = Array.from({ length: tuning.carry_capacity }, () => {
+  const slots = Array.from({ length: tuning.capacity_max }, () => {
     const slot = document.createElement('i');
     elements['mote-slots'].append(slot);
     return slot;
@@ -88,9 +90,12 @@ async function startGame() {
   function applySettings() {
     elements.volume.value = String(config.volume);
     elements.sensitivity.value = String(config.sensitivity);
+    elements.colorblind.checked = config.colorblind;
     setText(elements['volume-value'], `${config.volume}%`);
     setText(elements['sensitivity-value'], `${config.sensitivity}%`);
     sound.setVolume(config.volume / 100);
+    document.body.classList.toggle('accessible-palette', config.colorblind);
+    scene.setAccessiblePalette(config.colorblind);
     try { localStorage.setItem(settingsKey, JSON.stringify(config)); } catch { /* Storage may be disabled. */ }
   }
 
@@ -106,6 +111,10 @@ async function startGame() {
   });
   elements.sensitivity.addEventListener('input', () => {
     config.sensitivity = Number(elements.sensitivity.value);
+    applySettings();
+  });
+  elements.colorblind.addEventListener('change', () => {
+    config.colorblind = elements.colorblind.checked;
     applySettings();
   });
 
@@ -126,7 +135,7 @@ async function startGame() {
     newNight(1);
     elements.hud.hidden = true;
     elements.controls.hidden = true;
-    showOverlay('menu', 'Đảo Đèn Lồng', 'Cùng Mây mang ánh sáng qua ba hòn đảo trước bình minh.', [
+    showOverlay('menu', 'Đảo Đèn Lồng', 'Cùng Mây giữ ánh sáng trên ba hòn đảo tới bình minh.', [
       ['Bắt đầu hành trình', () => {
         sound.enable();
         introduction(1);
@@ -140,7 +149,8 @@ async function startGame() {
     elements.hud.hidden = true;
     elements.controls.hidden = true;
     const { title, introduction: greeting } = MAPS[number];
-    showOverlay('intro', title, greeting, [['Vào Đêm', () => enterNight(number)], ['Về menu', menu]], `Đêm ${number}`);
+    showOverlay('intro', title, `${greeting} Giữ ít nhất ${night.requiredLights}/${night.lanterns.length} đèn sáng tới bình minh.`,
+      [['Vào Đêm', () => enterNight(number)], ['Về menu', menu]], `Đêm ${number}`);
   }
 
   function enterNight(number) {
@@ -174,14 +184,15 @@ async function startGame() {
       wonScores[number - 1] = score;
       const total = wonScores.reduce((sum, points) => sum + points, 0);
       if (number === 3) {
-        showOverlay('dawn', 'Bình Minh', `Cả ba hòn đảo đã sáng. Tổng điểm ${total}.`,
+        showOverlay('dawn', 'Bình Minh', `Mây đã giữ được ánh sáng qua ba Đêm. Tổng điểm ${total}.`,
           [['Về menu', menu]], 'Hoàn thành hành trình');
       } else {
-        showOverlay('result', 'Đảo đã sáng', `Điểm Đêm ${number} là ${score}. Tổng điểm ${total}.`,
+        showOverlay('result', 'Qua Đêm', `Điểm Đêm ${number} là ${score}. Tổng điểm ${total}.`,
           [['Đêm kế tiếp', () => introduction(number + 1)], ['Về menu', menu]], chapter);
       }
     } else {
-      const copy = reason === 'dawn' ? 'Bình minh đã lên khi đèn còn dang dở.' : 'Mây đã hết Ngọn Lửa.';
+      const copy = reason === 'dawn' ? `Bình minh đã lên. Cần giữ ít nhất ${night.requiredLights} đèn sáng.`
+        : 'Mây đã hết Ngọn Lửa.';
       showOverlay('result', 'Đêm chưa sáng', copy,
         [['Chơi lại Đêm', () => enterNight(number)], ['Về menu', menu]], chapter);
     }
@@ -195,16 +206,26 @@ async function startGame() {
     setText(elements.timer, timeLabel(time));
     elements.timer.classList.toggle('urgent', time <= 30);
     setText(elements.lit, `${lit} / ${night.lanterns.length}`);
+    setText(elements['light-goal'], `Cần ${night.requiredLights}`);
     setText(elements.score, String(night.score));
-    setText(elements.carried, `${player.carried} / ${tuning.carry_capacity}`);
+    setText(elements.carried, `${player.carried} / ${night.capacity}`);
     elements.flames.setAttribute('aria-label', `${player.flames} / ${tuning.flames} Ngọn Lửa`);
     for (const [index, flame] of flames.entries()) flame.classList.toggle('filled', index < player.flames);
-    for (const [index, slot] of slots.entries()) slot.classList.toggle('filled', index < player.carried);
+    for (const [index, slot] of slots.entries()) {
+      slot.hidden = index >= night.capacity;
+      slot.classList.toggle('filled', index < player.carried);
+    }
     const ready = (ticks) => ticks > 0 ? `${(ticks / HZ).toFixed(1)} s` : 'Sẵn sàng';
     setText(elements['dash-status'], player.charm > 0 ? `Bùa ${Math.ceil(player.charm / HZ)} s` : ready(player.dashCd));
     setText(elements['pulse-status'], ready(player.pulseCd));
     const target = screen === 'playing' ? night.targetLantern() : null;
-    setText(elements.hint, target ? `E — Nạp ánh sáng (${target.deposited}/${tuning.lantern_cost})` : '');
+    let hint = '';
+    if (target) {
+      hint = target.lit ? `E — Châm dầu (${fuelAmount(target)}/${tuning.fuel_max})`
+        : `E — ${target.everLit ? 'Thắp lại' : 'Nạp ánh sáng'} (${target.deposited}/${lightCost(target, tuning)})`;
+    }
+    elements.hint.classList.toggle('fuel-warning', Boolean(target && isWeak(target, tuning)));
+    setText(elements.hint, hint);
     const wind = night.wind.warning ? 'Lá đang bay. Sắp có gió mạnh.' : night.wind.active ? 'Gió mạnh' : '';
     setText(elements.notice, wind || (night.simTick < noticeUntil ? notice : ''));
   }
@@ -329,6 +350,7 @@ async function startGame() {
     requestAnimationFrame(frame);
   }
 
+  applySettings();
   menu();
   requestAnimationFrame(frame);
 }

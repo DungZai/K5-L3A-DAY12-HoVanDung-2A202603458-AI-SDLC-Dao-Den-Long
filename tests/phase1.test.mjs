@@ -15,7 +15,7 @@ test('hồi quy tick 0, +Z, input giữ giá trị, xoay camera và cadence', ()
   assert.deepEqual(result.snapshots[0].player.pos, [0, 0, 0]);
   assert.deepEqual(result.snapshots[2].player.pos, [0, 0, 6]);
   assert.deepEqual(result.snapshots[4].player.pos, [6, 0, 6]);
-  assert.equal(result.snapshots[4].time_left_s, 298);
+  assert.equal(result.snapshots[4].time_left_s, 238);
   assert.equal(result.snapshots[4].sim_tick, 120);
   assert.deepEqual(result.end, { type: 'end', ticks: 125, state: 'playing', score: 0 });
 });
@@ -52,7 +52,7 @@ test('nạp nhiều lần, đèn nhớ tiến độ, ID nhỏ hơn thắng khi h
   assert.deepEqual(night.step({ interact: true }).map(({ name }) => name), ['deposit', 'lantern_lit']);
   assert.equal(night.lanterns[0].lit, true);
   assert.equal(night.lanterns[1].lit, false);
-  assert.equal(night.score, 200);
+  assert.equal(night.score, 150);
 });
 
 test('Tỏa Sáng dùng khoảng cách 3D, đẩy 4 m trong 15 tick, choáng và hồi chiêu', () => {
@@ -100,18 +100,19 @@ test('vùng đèn ngăn chạm và đẩy Bóng Mực đang ở trong ra trong 3
   for (let index = 0; index < 29; index++) night.step();
   assert.equal(night.player.flames, 3);
   assert.ok(night.shades.every(({ pos }) => Math.hypot(pos[0], pos[2]) >= 6));
-  assert.equal(night.score, 200);
+  assert.equal(night.score, 150);
 });
 
-test('thắng đúng tick bình minh, mất hết Ngọn Lửa ưu tiên hơn đủ đèn', () => {
-  const lanterns = [1, 2, 3, 4, 5].map((index) => ({ id: 'L' + index, pos: [0, 0, 0], lit: index > 1 }));
+test('thắp đèn để đủ ngưỡng ngay tick bình minh, hết Ngọn Lửa vẫn ưu tiên', () => {
+  const lanterns = [1, 2, 3].map((index) => ({ id: 'L' + index, pos: [0, 0, 0], lit: index > 1 }));
   const result = cli({ ticks: 20, snapshot: 1, inputs: { frames: [{ tick: 0, interact: true }] },
     scenario: { ...isolated, player: { carried: 10 }, lanterns, time_left_s: 1 / 60 } });
   assert.equal(result.snapshots[0].score, 0);
   assert.equal(result.snapshots[0].lanterns.length, 5);
   assert.deepEqual(result.events.map(({ name, tick }) => [name, tick]),
     [['night_start', 0], ['deposit', 1], ['lantern_lit', 1], ['game_over', 1]]);
-  assert.deepEqual(result.end, { type: 'end', ticks: 1, state: 'won', score: 350 });
+  assert.deepEqual(result.events.at(-1).data, { result: 'won', reason: 'dawn_survived' });
+  assert.deepEqual(result.end, { type: 'end', ticks: 1, state: 'won', score: 748 });
   const lost = newNight({ player: { flames: 1, pos: [45, -11, 0], invuln_ticks: 90 },
     lanterns: lanterns.map((lamp) => ({ ...lamp, lit: true })) });
   assert.deepEqual(lost.step().at(-1).data, { result: 'lost', reason: 'no_flames' });

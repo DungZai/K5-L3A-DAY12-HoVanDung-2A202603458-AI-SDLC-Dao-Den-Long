@@ -5,6 +5,8 @@ import { arch, cpus, platform, release } from 'node:os';
 import { cli, contract } from '../tests/headless.mjs';
 import { phase2Cases } from '../tests/phase2-scenarios.mjs';
 
+assert.equal(contract.contract_version, '1.1', 'Dùng tag phase-2 để tạo lại bằng chứng theo Test Contract v1.1.');
+
 const sampleTicks = {
   dash: [0, 5, 6, 17, 18],
   pause: [0, 4, 5, 14, 15, 18],

@@ -9,21 +9,23 @@ npm ci
 npm start
 ```
 
-Mở [http://127.0.0.1:8080](http://127.0.0.1:8080) rồi chọn **Bắt đầu hành trình**. Lần lượt thắp 5 đèn ở Đảo Bến, 6 đèn ở Đảo Cau và 7 đèn ở Đảo Chuông. Cầu tre và bục nhảy đưa Mây sang đảo kia. Trên Đảo Chuông, theo dốc lên vành đá rồi dùng bục để lên tháp chuông.
+Mở [http://127.0.0.1:8080](http://127.0.0.1:8080) rồi chọn **Bắt đầu hành trình**. Giữ ít nhất **3/5** đèn ở Đảo Bến, **4/6** ở Đảo Cau và **5/7** ở Đảo Chuông tới bình minh. Cầu tre và bục nhảy đưa Mây sang đảo kia. Trên Đảo Chuông, theo dốc lên vành đá rồi dùng bục để lên tháp chuông.
 
 | Phím | Hành động |
 |---|---|
 | W, A, S, D | Di chuyển theo góc nhìn |
 | Space | Nhảy |
 | Shift | Lướt theo hướng di chuyển hoặc hướng đang quay mặt |
-| E | Nạp tối đa số đom đóm còn thiếu cho đèn chưa sáng gần nhất |
+| E | Nạp hoặc châm dầu cho đèn gần nhất còn nhận được đom đóm |
 | Q | Dùng 3 đom đóm để Tỏa Sáng |
 | ←, → hoặc kéo chuột | Xoay camera quanh Mây |
 | Esc hoặc P | Mở hoặc đóng menu tạm dừng |
 
-Gió Lạc có thể cướp đom đóm. Tỏa Sáng trúng Gió Lạc đang bỏ chạy sẽ làm rơi lại số đom đóm đã cướp. Bùa Gió tăng tốc và bỏ hồi chiêu Lướt trong 10 giây. Cài đặt âm lượng và độ nhạy được lưu trong trình duyệt.
+Đèn mới cần 10 đom đóm. Mỗi đom đóm châm thêm 10 dầu. Đèn dưới 30 dầu nhấp nháy, mất vùng an toàn và có thể bị Bóng Mực hút dầu. Đèn đã cạn cần 5 đom đóm để thắp lại. Mỗi lần thắp thành công tăng sức chứa thêm 2, tối đa 20.
 
-Mỗi đom đóm **nạp vào đèn** cộng **10 điểm**, mỗi đèn thắp mới cộng **100**, mỗi Bóng Mực trúng Tỏa Sáng cộng **5**. Khi thắng, cộng **2 điểm mỗi giây nguyên còn lại** và **50 điểm mỗi Ngọn Lửa còn lại**. Tổng điểm là tổng điểm của các Đêm đã thắng.
+Gió Lạc có thể cướp đom đóm. Tỏa Sáng trúng Gió Lạc đang bỏ chạy sẽ làm rơi lại số đom đóm đã cướp. Bùa Gió tăng tốc và bỏ hồi chiêu Lướt trong 10 giây. Có thể bật **Bảng màu dễ phân biệt** trong Cài đặt. Tùy chọn này được lưu cùng âm lượng và độ nhạy chuột.
+
+Mỗi đom đóm **nạp vào đèn** cộng **5 điểm**, thắp lần đầu cộng **100**, thắp lại cộng **40**. Tỏa Sáng cộng **5** mỗi Bóng Mực trúng đòn hoặc **15** nếu con đó đang hút dầu. Khi thắng, cộng **50 cộng phần nguyên dầu** cho mỗi đèn còn sáng và **50** cho mỗi Ngọn Lửa còn lại. Tổng điểm là tổng điểm của các Đêm đã thắng.
 
 ### Chạy test và headless
 
@@ -33,11 +35,11 @@ npm run proof
 node scripts/headless.mjs --seed 1847 --night 3 --ticks 240 --out run.local.jsonl
 ```
 
-Headless nhận `--night 1`, `2` hoặc `3`. Tùy chọn `--inputs` nhận file khung điều khiển. `--scenario` nhận file thiết lập tình huống. Chế độ headless dùng chung mô phỏng 60 tick/giây với bản 3D theo [Test Contract v1.1](game.contract.json). Xem [tiêu chí nghiệm thu và bằng chứng Phase 2](docs/phase-2.md). Có thể tái tạo bằng chứng v1.0 từ tag `phase-1`.
+Headless nhận `--night 1`, `2` hoặc `3`. Tùy chọn `--inputs` nhận file khung điều khiển. `--scenario` nhận file thiết lập tình huống. Chế độ headless dùng chung mô phỏng 60 tick/giây với bản 3D theo [Test Contract v1.2](game.contract.json). Xem [tiêu chí nghiệm thu và bằng chứng Phase 3](docs/phase-3.md) và [các thay đổi phá tương thích](CHANGELOG.md). Các tag `phase-1` và `phase-2` chứa contract và bằng chứng của bản tương ứng.
 
 ### Sáng tạo của tôi
 
-Mây mang đèn nhỏ dưới vành nón lá. Đường đá, biển mây chuyển động và quầng sáng vàng quanh đèn nằm trong lớp dựng cảnh. Hai lần chạy cùng dữ liệu tiếp tục cho output giống từng byte trong [bằng chứng Phase 2](docs/proof/phase-2-headless.json).
+Mây mang đèn nhỏ dưới vành nón lá. Đường đá, biển mây chuyển động và quầng sáng vàng quanh đèn nằm trong lớp dựng cảnh. Hai lần chạy cùng dữ liệu tiếp tục cho output giống từng byte trong [bằng chứng Phase 3](docs/proof/phase-3-headless.json).
 
 ## Đề bài của lab
 

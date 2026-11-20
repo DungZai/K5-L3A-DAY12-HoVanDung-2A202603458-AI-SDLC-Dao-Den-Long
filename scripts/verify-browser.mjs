@@ -6,7 +6,7 @@ import { arch, cpus, platform, release } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
-const { chromium } = require(process.env.PHASE2_PLAYWRIGHT || 'playwright');
+const { chromium } = require(process.env.LAB_PLAYWRIGHT || process.env.PHASE2_PLAYWRIGHT || 'playwright');
 const cwd = fileURLToPath(new URL('../', import.meta.url));
 const proof = fileURLToPath(new URL('../docs/proof/', import.meta.url));
 const server = spawn(process.execPath, ['scripts/serve.mjs'], {
@@ -55,14 +55,15 @@ async function sampleFps(page) {
 }
 
 async function fixture(page, value) {
-  await page.evaluate((selected) => { window.__phase2Fixture = selected; }, value);
+  await page.evaluate((selected) => { window.__labFixture = selected; }, value);
 }
 
 try {
   const base = await serverUrl();
-  const args = process.env.PHASE2_SWIFTSHADER === '1'
+  const args = (process.env.LAB_SWIFTSHADER ?? process.env.PHASE2_SWIFTSHADER) === '1'
     ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [];
-  browser = await chromium.launch({ executablePath: process.env.PHASE2_BROWSER || undefined, headless: true, args });
+  browser = await chromium.launch({ executablePath: process.env.LAB_BROWSER || process.env.PHASE2_BROWSER || undefined,
+    headless: true, args });
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
@@ -71,27 +72,49 @@ try {
   const anchor = 'constructor(tuning, seed, scenario = {}, number = 1) {';
   assert.ok(source.includes(anchor), 'Night constructor for browser fixtures');
   const injected = source.replace(anchor, anchor + `
-    if (globalThis.__phase2Fixture === 'win') {
+    if (globalThis.__labFixture === 'win') {
       scenario = { random_motes: false, random_shades: false, random_drifters: false, wind_enabled: false,
-        player: { carried: 10 },
+        time_left_s: 2.2, player: { carried: 10 },
         lanterns: MAPS[number].lanterns.map((pos, i) => ({
           id: 'L' + (i + 1), lit: i > 0, pos: i === 0 ? [0, 0, 0] : pos
         })) };
-    } else if (globalThis.__phase2Fixture === 'lose') {
+    } else if (globalThis.__labFixture === 'lose') {
       scenario = { player: { flames: 0 } };
-    } else if (globalThis.__phase2Fixture === 'countdown') {
-      scenario = { time_left_s: 10.2, random_motes: false, random_shades: false };
+    } else if (globalThis.__labFixture === 'low-fuel') {
+      scenario = { time_left_s: 10.2, random_motes: false, random_shades: false,
+        player: { carried: 3, successful_lights: 2 },
+        lanterns: [{ id: 'L1', pos: [1.25, 0, 1.15], lit: true, fuel: 28 },
+          { id: 'L2', pos: [-2.25, 0, 7] }],
+        shades: [{ pos: [2.5, 0.8, 5.3], state: 'stunned', state_ticks_left: 600 }] };
     }
   `);
   await page.route('**/src/game.mjs', (route) => route.fulfill({
     status: 200, contentType: 'text/javascript; charset=utf-8', body: injected
+  }));
+  const scene = readFileSync(new URL('../src/scene.mjs', import.meta.url), 'utf8');
+  const drawAnchor = 'renderer.render(scene, camera);';
+  assert.ok(scene.includes(drawAnchor), 'Scene render entry point');
+  await page.route('**/src/scene.mjs', (route) => route.fulfill({
+    status: 200, contentType: 'text/javascript; charset=utf-8',
+    body: scene.replace(drawAnchor, `
+      if (globalThis.__labFixture === 'low-fuel') {
+        globalThis.__fuelVisuals = {
+          rim: rim.color.getHex(), halo: shadeHalo.color.getHex(),
+          lamps: layout.lamps.slice(0, 2).map((lamp) => ({
+            scale: lamp.housing.scale.x, tears: lamp.tears.visible, safety: lamp.safety.visible,
+            bar: lamp.meter.group.visible, fill: lamp.meter.fill.scale.x, bar_opacity: lamp.meter.fill.material.opacity,
+            lantern_opacity: lamp.glow.material.opacity
+          }))
+        };
+      }
+    ` + drawAnchor)
   }));
   const audio = readFileSync(new URL('../src/audio.mjs', import.meta.url), 'utf8');
   const audioAnchor = 'play(name) {';
   assert.ok(audio.includes(audioAnchor), 'Audio event entry point');
   await page.route('**/src/audio.mjs', (route) => route.fulfill({
     status: 200, contentType: 'text/javascript; charset=utf-8',
-    body: audio.replace(audioAnchor, audioAnchor + ' (globalThis.__phase2AudioEvents ??= []).push(name);')
+    body: audio.replace(audioAnchor, audioAnchor + ' (globalThis.__labAudioEvents ??= []).push(name);')
   }));
 
   await page.goto(base, { waitUntil: 'networkidle' });
@@ -114,8 +137,9 @@ try {
   await page.keyboard.press('ArrowRight');
   await page.locator('#sensitivity').focus();
   await page.keyboard.press('End');
+  await page.getByRole('checkbox', { name: 'Bảng màu dễ phân biệt' }).check();
   assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('dao-den-long-settings'))),
-    { volume: 1, sensitivity: 200 });
+    { volume: 1, sensitivity: 200, colorblind: true });
   await click(page, 'Quay lại');
   await click(page, 'Tiếp tục');
   await page.locator('#overlay').waitFor({ state: 'hidden' });
@@ -123,10 +147,35 @@ try {
   await page.waitForFunction(() => / s$/.test(document.querySelector('#dash-status').textContent));
   await page.keyboard.press('p');
   await page.getByRole('heading', { name: 'Tạm dừng' }).waitFor();
-  await fixture(page, 'countdown');
+  await fixture(page, 'low-fuel');
   await click(page, 'Chơi lại Đêm');
   await page.locator('#timer.urgent').waitFor();
-  await page.waitForFunction(() => window.__phase2AudioEvents?.includes('countdown'));
+  await page.waitForFunction(() => window.__labAudioEvents?.includes('countdown'));
+  await page.waitForFunction(() => window.__fuelVisuals?.lamps[0].bar_opacity < 0.42);
+  const dim = await page.evaluate(() => window.__fuelVisuals);
+  await page.waitForFunction(() => window.__fuelVisuals?.lamps[0].bar_opacity > 0.96);
+  const bright = await page.evaluate(() => window.__fuelVisuals);
+  assert.equal(bright.rim, 0x00b3ff);
+  assert.equal(bright.halo, 0x00b3ff);
+  assert.ok(bright.lamps[0].lantern_opacity > dim.lamps[0].lantern_opacity);
+  assert.equal(bright.lamps[0].bar, true);
+  assert.equal(bright.lamps[0].tears, false);
+  assert.equal(bright.lamps[0].safety, false);
+  assert.equal(bright.lamps[1].bar, false);
+  assert.equal(bright.lamps[1].tears, true);
+  assert.ok(Math.abs(bright.lamps[1].scale / bright.lamps[0].scale - 0.8) < 1e-8);
+  const warning = await page.locator('#timer').evaluate((element) => ({
+    color: getComputedStyle(element).color, icon: getComputedStyle(element, '::before').content
+  }));
+  assert.equal(warning.color, 'rgb(255, 255, 255)');
+  assert.match(warning.icon, /⚠/);
+  assert.equal(await label(page, 'carried'), '3 / 14');
+  assert.equal(await page.locator('#mote-slots i:not([hidden])').count(), 14);
+  assert.match(await label(page, 'hint'), /Châm dầu/);
+  await page.screenshot({ path: proof + 'phase-3-fuel-and-palette.png' });
+  await page.keyboard.press('e');
+  await page.waitForFunction(() => window.__fuelVisuals?.lamps[0].safety);
+  assert.equal(await label(page, 'carried'), '0 / 14');
   await page.keyboard.press('Escape');
   await page.getByRole('heading', { name: 'Tạm dừng' }).waitFor();
   await fixture(page, 'lose');
@@ -140,7 +189,6 @@ try {
     await page.waitForFunction((label) => document.querySelector('#night-label').textContent.includes(label), title);
     assert.equal(await label(page, 'lit'), `0 / ${night + 4}`);
     fps[night] = await sampleFps(page);
-    await page.screenshot({ path: proof + `phase-2-night-${night}.png` });
 
     await page.keyboard.press('Escape');
     await page.getByRole('heading', { name: 'Tạm dừng' }).waitFor();
@@ -148,11 +196,13 @@ try {
     await click(page, 'Chơi lại Đêm');
     await page.waitForFunction(() => document.querySelector('#carried').textContent === '10 / 10');
     await page.keyboard.press('e');
-    await page.getByRole('heading', { name: night === 3 ? 'Bình Minh' : 'Đảo đã sáng' }).waitFor();
+    await page.waitForFunction((count) => document.querySelector('#lit').textContent === `${count} / ${count}`, night + 4);
+    assert.equal(await page.locator('#overlay').isHidden(), true);
+    await page.getByRole('heading', { name: night === 3 ? 'Bình Minh' : 'Qua Đêm' }).waitFor();
     scores.push(Number(await label(page, 'score')));
     if (night === 3) {
       assert.ok((await label(page, 'overlay-copy')).includes(`Tổng điểm ${scores.reduce((a, b) => a + b, 0)}.`));
-      await page.screenshot({ path: proof + 'phase-2-dawn.png' });
+      await page.screenshot({ path: proof + 'phase-3-dawn.png' });
     } else {
       await click(page, 'Đêm kế tiếp');
       await page.getByRole('heading', { name: night === 1 ? 'Đảo Cau' : 'Đảo Chuông' }).waitFor();
@@ -166,6 +216,7 @@ try {
   await click(page, 'Cài đặt');
   assert.equal(await page.locator('#volume').inputValue(), '1');
   assert.equal(await page.locator('#sensitivity').inputValue(), '200');
+  assert.equal(await page.locator('#colorblind').isChecked(), true);
   assert.deepEqual(errors, []);
   const gpu = await page.evaluate(() => {
     const canvas = document.querySelector('#world canvas');
@@ -178,11 +229,14 @@ try {
   const result = {
     environment: { os: `${platform()} ${release()} ${arch()}`, cpu: cpus()[0]?.model, node: process.version,
       chromium: browser.version(), gpu, viewport: '1280x720', render_buffer: resolution, device_pixel_ratio: 1 },
-    fps, verified: ['menu', 'introductions', 'pause_resume', 'dash_hud', 'loss_and_retry',
-      'three_night_progression', 'total_at_dawn', 'settings_persisted', 'urgent_timer_and_countdown_audio'], scores_with_win_fixtures: scores,
+    fps, verified: ['menu', 'introductions', 'pause_resume', 'dash_hud', 'loss_and_retry', 'no_early_win',
+      'three_night_progression', 'total_at_dawn', 'settings_persisted', 'urgent_timer_and_countdown_audio',
+      'fuel_meter_blink', 'torn_collapsed_lantern', 'accessible_colors', 'refuel_restores_safety', 'capacity_hud'],
+    palette: { rim_hex: '#00B3FF', warning },
+    fuel_fixture: { dim, bright }, scores_with_win_fixtures: scores,
     browser_errors: []
   };
-  writeFileSync(proof + 'phase-2-browser.json', JSON.stringify(result, null, 2) + '\n');
+  writeFileSync(proof + 'phase-3-browser.json', JSON.stringify(result, null, 2) + '\n');
   console.log(JSON.stringify(result, null, 2));
   assert.ok(Object.values(fps).every(({ average_fps }) => average_fps >= 30), '30 FPS trung bình ở mọi Đêm');
 } finally {

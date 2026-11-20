@@ -1,5 +1,7 @@
 # Phase 2 · Ba hòn đảo
 
+Chạy các phép kiểm chứng v1.1 từ tag `phase-2`. Nhánh chính dùng v1.2 và đã cập nhật các kỳ vọng về đèn, điểm và thời lượng theo [changelog](../CHANGELOG.md).
+
 Ticket-02 chuẩn hóa Đêm 1 và bổ sung Đảo Cau, Đảo Chuông. Tuning và điểm nằm trong [game.contract.json](../game.contract.json). Vị trí, danh sách điểm sinh, cầu, dốc, bục và tháp nằm trong [maps.mjs](../src/maps.mjs).
 
 ## Tiêu chí nghiệm thu

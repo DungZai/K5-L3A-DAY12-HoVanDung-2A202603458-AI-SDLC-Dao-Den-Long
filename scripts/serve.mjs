@@ -11,6 +11,7 @@ const files = new Map([
   ['/src/maps.mjs', 'src/maps.mjs'],
   ['/src/player.mjs', 'src/player.mjs'],
   ['/src/hazards.mjs', 'src/hazards.mjs'],
+  ['/src/lanterns.mjs', 'src/lanterns.mjs'],
   ['/src/audio.mjs', 'src/audio.mjs'],
   ['/src/scene.mjs', 'src/scene.mjs'],
   ['/vendor/three.module.js', 'node_modules/three/build/three.module.js']

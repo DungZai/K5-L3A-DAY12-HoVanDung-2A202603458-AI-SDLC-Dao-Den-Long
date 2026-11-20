@@ -1,6 +1,7 @@
 const SOUNDS = {
   mote_picked: [784, 1175],
   lantern_lit: [392, 523, 659, 784],
+  refuel: [523, 698],
   pulse: [300, 600, 440],
   player_hit: [160, 97],
   jump: [280, 460],
