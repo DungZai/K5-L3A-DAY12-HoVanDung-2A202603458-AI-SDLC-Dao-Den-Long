@@ -1,0 +1,30 @@
+{
+  "seed": 1847,
+  "contract_version": "1.0",
+  "default_night_sha256": "7c99f521b9fab35f7368eb9182236ea91314e55415b6ee1f87b74ae16b8780b1",
+  "repeat_byte_identical": true,
+  "default_night": {
+    "type": "end",
+    "ticks": 911,
+    "state": "won",
+    "score": 1178
+  },
+  "collision": {
+    "type": "end",
+    "ticks": 91,
+    "state": "lost",
+    "score": 0
+  },
+  "pulse": {
+    "type": "end",
+    "ticks": 130,
+    "state": "playing",
+    "score": 25
+  },
+  "dawn": {
+    "type": "end",
+    "ticks": 60,
+    "state": "lost",
+    "score": 0
+  }
+}

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101a2f">
+  <title>Đảo Đèn Lồng · Đêm 1</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main id="game" aria-label="Đảo Đèn Lồng">
+    <div id="world" aria-label="Cảnh 3D của Đảo Bến"></div>
+    <header class="hud">
+      <div class="identity">
+        <div class="seal" aria-hidden="true"><i></i></div>
+        <div><h1>Đảo Đèn Lồng</h1><p>Đêm 1 · Đảo Bến</p></div>
+      </div>
+      <dl class="stats" aria-label="Trạng thái của Mây">
+        <div><dt>Sinh lực</dt><dd id="flames">3 / 3</dd></div>
+        <div><dt>Đom đóm</dt><dd id="carried">0 / 12</dd></div>
+        <div><dt>Đã thắp</dt><dd id="lit">0 / 5</dd></div>
+        <div><dt>Bình minh</dt><dd id="timer">03:00</dd></div>
+        <div><dt>Điểm</dt><dd id="score">0</dd></div>
+      </dl>
+    </header>
+    <div class="guidance">
+      <p id="objective">Gom đom đóm và thắp sáng 5 chiếc đèn lớn.</p>
+      <p id="hint" role="status"></p>
+    </div>
+    <footer class="controls" aria-label="Điều khiển">
+      <span><kbd>W A S D</kbd> Di chuyển</span>
+      <span><kbd>Space</kbd> Nhảy</span>
+      <span><kbd>E</kbd> Nạp đèn</span>
+      <span><kbd>Q</kbd> Tỏa sáng</span>
+      <span><kbd>← →</kbd> Xoay góc nhìn</span>
+    </footer>
+    <section id="overlay" class="overlay" aria-labelledby="overlay-title">
+      <div class="panel">
+        <div class="seal" aria-hidden="true"><i></i></div>
+        <p class="chapter">Đêm 1 · Đảo Bến</p>
+        <h2 id="overlay-title">Đảo Đèn Lồng</h2>
+        <p id="overlay-copy">Đưa ánh sáng trở lại hòn đảo trước khi bình minh lên.</p>
+        <button id="begin" type="button" disabled>Đang tải…</button>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="/src/main.mjs"></script>
+</body>
+</html>

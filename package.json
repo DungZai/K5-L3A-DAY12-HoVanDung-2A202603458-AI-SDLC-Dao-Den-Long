@@ -1,0 +1,14 @@
+{
+  "name": "dao-den-long",
+  "version": "0.1.0",
+  "private": true,
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node scripts/serve.mjs",
+    "test": "node --test tests/phase1.test.mjs",
+    "proof": "node scripts/verify-phase1.mjs"
+  },
+  "dependencies": {
+    "three": "0.160.1"
+  }
+}

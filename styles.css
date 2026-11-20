@@ -1,0 +1,140 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, sans-serif;
+  background: #101a2f;
+  color: #fff4df;
+  --warm: #ffd484;
+  --glass: #12192ae8;
+  --line: #f9d38a36;
+}
+* { box-sizing: border-box; }
+body { margin: 0; overflow: hidden; }
+[hidden] { display: none !important; }
+#game, #world { position: fixed; inset: 0; }
+#world canvas { display: block; width: 100%; height: 100%; }
+#world { cursor: grab; touch-action: none; }
+#world:active { cursor: grabbing; }
+.hud {
+  position: absolute;
+  top: 24px;
+  left: 26px;
+  right: 26px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  pointer-events: none;
+}
+.identity, .stats, .controls {
+  background: var(--glass);
+  border: 1px solid var(--line);
+  box-shadow: 0 12px 34px #04071450;
+  border-radius: 13px;
+}
+.identity { display: flex; align-items: center; gap: 13px; padding: 11px 17px; }
+.identity h1, .panel h2 {
+  font-family: Cambria, Georgia, 'Times New Roman', serif;
+  font-weight: 600;
+  line-height: 1.04;
+  margin: 0;
+}
+.identity h1 { font-size: 1.3rem; }
+.identity p, .stats dt, .chapter { color: var(--warm); }
+.identity p { margin: 4px 0 0; font-size: .76rem; }
+.seal {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border: 1px solid #ffd17c77;
+  border-radius: 50%;
+  background: radial-gradient(circle, #b15c3355, transparent 72%);
+}
+.seal i {
+  width: 14px;
+  height: 18px;
+  border-radius: 40%;
+  border-block: 2px solid #f9a951;
+  background: linear-gradient(90deg,#c36a3c,#ffdf91,#c36a3c);
+  box-shadow: 0 0 12px #f7a65488;
+}
+.stats { display: flex; margin: 0; padding: 10px 5px; }
+.stats > div { min-width: 77px; padding: 2px 13px; text-align: center; }
+.stats > div + div { border-left: 1px solid var(--line); }
+.stats dt { font-size: .7rem; white-space: nowrap; }
+.stats dd { margin: 4px 0 0; font-size: 1.02rem; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.guidance { position: absolute; bottom: 88px; inset-inline: 12px; text-align: center; pointer-events: none; }
+.guidance p { margin: 0; text-shadow: 0 2px 5px #000, 0 0 15px #050717; }
+#objective { font-size: .85rem; color: #e4d6c4; }
+#hint { min-height: 1.5em; color: var(--warm); font-weight: 700; margin-top: 6px; }
+.controls {
+  position: absolute;
+  bottom: 23px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 9px 14px;
+  display: flex;
+  gap: 15px;
+  width: max-content;
+  max-width: calc(100% - 28px);
+  font-size: .76rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  pointer-events: none;
+}
+kbd {
+  display: inline-block;
+  border: 1px solid #f7ce8260;
+  background: #4c3a303a;
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-right: 3px;
+  color: var(--warm);
+}
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: radial-gradient(ellipse at 50% 50%, #0c102663, #080d1ca6);
+}
+.panel {
+  display: grid;
+  justify-items: center;
+  width: min(480px, 100%);
+  text-align: center;
+  padding: 34px 27px;
+  background: linear-gradient(160deg, #242734ee, #121827f5 75%);
+  border: 1px solid #ffd38258;
+  border-radius: 24px;
+  box-shadow: 0 28px 100px #06091bad;
+}
+.panel .seal { width: 52px; height: 52px; }
+.chapter { margin: 16px 0 8px; font-size: .79rem; }
+.panel h2 { font-size: clamp(2.1rem, 6vw, 3.45rem); color: #fff1d0; }
+#overlay-copy { margin: 14px auto 22px; max-width: 30ch; line-height: 1.5; color: #e8deca; }
+button {
+  border: 1px solid #f4a25c;
+  border-radius: 8px;
+  background: linear-gradient(#ffde98, #eeb26a);
+  color: #302019;
+  font: inherit;
+  font-weight: 750;
+  padding: 10px 24px;
+  cursor: pointer;
+}
+button:hover { background: #ffdda0; }
+button:focus-visible { outline: 3px solid #fff1cb; outline-offset: 4px; }
+button:disabled { opacity: .6; cursor: wait; }
+@media (max-width: 650px) {
+  .hud { top: 12px; left: 12px; right: 12px; flex-wrap: wrap; gap: 7px; }
+  .identity { padding: 7px 10px; }
+  .identity h1 { font-size: 1.02rem; }
+  .stats { padding: 7px 1px; }
+  .stats > div { padding-inline: 8px; min-width: auto; }
+  .stats dd { font-size: .86rem; }
+  .controls { bottom: 10px; gap: 6px 11px; }
+  .guidance { bottom: 72px; }
+}
